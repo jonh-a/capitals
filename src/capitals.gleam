@@ -15,9 +15,9 @@ import lustre/ui/layout/aside
 pub type Model {
   Model(
     score: Int,
-    correct: List(String),
-    incorrect: List(String),
-    current_country: String,
+    correct: List(#(String, String)),
+    incorrect: List(#(String, String)),
+    current_country: #(String, String),
     current_guess: String,
   )
 }
@@ -27,7 +27,7 @@ fn init(_flags) -> Model {
     score: 0,
     correct: [],
     incorrect: [],
-    current_country: "United States",
+    current_country: #("", ""),
     current_guess: "",
   )
 }
@@ -42,48 +42,37 @@ pub type Msg {
 const countries = [#("United States", "washington, dc"), #("Canada", "ottawa")]
 
 fn validate_country(model: Model) -> Model {
-  let country = model.current_country
-  let capital = model.current_guess |> string.lowercase()
+  let capital_guess = model.current_guess |> string.lowercase()
+  let guess_was_correct = capital_guess == model.current_country.1
+  let joined_guesses = list.append(model.correct, model.incorrect)
 
-  let country_found =
-    countries
-    |> list.find(fn(x) { x.0 == country && x.1 == capital })
-
-  case country_found {
-    Ok(_) ->
+  case guess_was_correct {
+    True ->
       Model(
         ..model,
         score: model.score + 1,
-        correct: list.append(model.correct, [country]),
-        current_country: next_country(list.append(
-          model.correct,
-          model.incorrect,
-        )),
+        correct: list.append(model.correct, [model.current_country]),
+        current_country: next_country([model.current_country, ..joined_guesses]),
         current_guess: "",
       )
-    Error(_) ->
+    False ->
       Model(
         ..model,
-        incorrect: list.append(model.incorrect, [country]),
-        current_country: next_country(list.append(
-          model.correct,
-          model.incorrect,
-        )),
+        incorrect: list.append(model.incorrect, [model.current_country]),
+        current_country: next_country([model.current_country, ..joined_guesses]),
         current_guess: "",
       )
   }
 }
 
-fn next_country(guessed: List(String)) -> String {
-  let country_names = list.map(countries, fn(c) { c.0 })
-  io.debug(country_names)
+fn next_country(guessed: List(#(String, String))) -> #(String, String) {
   let remaining_countries =
-    country_names
+    countries
     |> list.filter(fn(country) { list.contains(guessed, country) == False })
 
   case list.first(remaining_countries) {
     Ok(country) -> country
-    Error(_) -> "Game Over"
+    Error(_) -> #("Game over", "")
   }
 }
 
@@ -104,7 +93,7 @@ pub fn view(model: Model) -> element.Element(Msg) {
     element.fragment([
       ui.field(
         [],
-        [element.text("Country: " <> model.current_country)],
+        [element.text("Country: " <> model.current_country.0)],
         ui.input([
           attribute.value(model.current_guess),
           event.on_input(UserUpdatedGuess),
@@ -113,8 +102,8 @@ pub fn view(model: Model) -> element.Element(Msg) {
       ),
       ui.button([event.on_click(Validate)], [element.text("Submit")]),
       element.text("Score: " <> score),
-      element.text("Correct: " <> string.join(model.correct, ", ")),
-      element.text("Incorrect: " <> string.join(model.incorrect, ", ")),
+      // element.text("Correct: " <> string.join(model.correct, ", ")),
+    // element.text("Incorrect: " <> string.join(model.incorrect, ", ")),
     ])
 
   ui.centre([attribute.style(styles)], content)

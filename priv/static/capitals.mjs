@@ -108,11 +108,6 @@ var BitArray = class _BitArray {
     return new _BitArray(this.buffer.slice(index2));
   }
 };
-var UtfCodepoint = class {
-  constructor(value3) {
-    this.value = value3;
-  }
-};
 function byteArrayToInt(byteArray) {
   byteArray = byteArray.reverse();
   let value3 = 0;
@@ -375,25 +370,6 @@ function fold_right(list, initial, fun) {
     return fun(fold_right(rest$1, initial, fun), x);
   }
 }
-function find(loop$haystack, loop$is_desired) {
-  while (true) {
-    let haystack = loop$haystack;
-    let is_desired = loop$is_desired;
-    if (haystack.hasLength(0)) {
-      return new Error(void 0);
-    } else {
-      let x = haystack.head;
-      let rest$1 = haystack.tail;
-      let $ = is_desired(x);
-      if ($) {
-        return new Ok(x);
-      } else {
-        loop$haystack = rest$1;
-        loop$is_desired = is_desired;
-      }
-    }
-  }
-}
 
 // build/dev/javascript/gleam_stdlib/gleam/result.mjs
 function map2(result, fun) {
@@ -435,13 +411,6 @@ function to_string(builder) {
 // build/dev/javascript/gleam_stdlib/gleam/string.mjs
 function lowercase2(string3) {
   return lowercase(string3);
-}
-function join2(strings, separator) {
-  return join(strings, separator);
-}
-function inspect2(term) {
-  let _pipe = inspect(term);
-  return to_string(_pipe);
 }
 
 // build/dev/javascript/gleam_stdlib/gleam/dynamic.mjs
@@ -904,7 +873,7 @@ function collisionIndexOf(root2, key) {
   }
   return -1;
 }
-function find2(root2, shift, hash, key) {
+function find(root2, shift, hash, key) {
   switch (root2.type) {
     case ARRAY_NODE:
       return findArray(root2, shift, hash, key);
@@ -921,7 +890,7 @@ function findArray(root2, shift, hash, key) {
     return void 0;
   }
   if (node.type !== ENTRY) {
-    return find2(node, shift + SHIFT, hash, key);
+    return find(node, shift + SHIFT, hash, key);
   }
   if (isEqual(key, node.k)) {
     return node;
@@ -936,7 +905,7 @@ function findIndex(root2, shift, hash, key) {
   const idx = index(root2.bitmap, bit);
   const node = root2.array[idx];
   if (node.type !== ENTRY) {
-    return find2(node, shift + SHIFT, hash, key);
+    return find(node, shift + SHIFT, hash, key);
   }
   if (isEqual(key, node.k)) {
     return node;
@@ -1141,7 +1110,7 @@ var Dict = class _Dict {
     if (this.root === void 0) {
       return notFound;
     }
-    const found = find2(this.root, 0, getHash(key), key);
+    const found = find(this.root, 0, getHash(key), key);
     if (found === void 0) {
       return notFound;
     }
@@ -1186,7 +1155,7 @@ var Dict = class _Dict {
     if (this.root === void 0) {
       return false;
     }
-    return find2(this.root, 0, getHash(key), key) !== void 0;
+    return find(this.root, 0, getHash(key), key) !== void 0;
   }
   /**
    * @returns {[K,V][]}
@@ -1241,16 +1210,6 @@ function to_string3(term) {
 function lowercase(string3) {
   return string3.toLowerCase();
 }
-function join(xs, separator) {
-  const iterator = xs[Symbol.iterator]();
-  let result = iterator.next().value || "";
-  let current = iterator.next();
-  while (!current.done) {
-    result = result + separator + current.value;
-    current = iterator.next();
-  }
-  return result;
-}
 function concat(xs) {
   let result = "";
   for (const x of xs) {
@@ -1280,15 +1239,6 @@ var unicode_whitespaces = [
 ].join();
 var left_trim_regex = new RegExp(`^([${unicode_whitespaces}]*)`, "g");
 var right_trim_regex = new RegExp(`([${unicode_whitespaces}]*)$`, "g");
-function print_debug(string3) {
-  if (typeof process === "object" && process.stderr?.write) {
-    process.stderr.write(string3 + "\n");
-  } else if (typeof Deno === "object") {
-    Deno.stderr.writeSync(new TextEncoder().encode(string3 + "\n"));
-  } else {
-    console.log(string3);
-  }
-}
 function map_get(map4, key) {
   const value3 = map4.get(key, NOT_FOUND);
   if (value3 === NOT_FOUND) {
@@ -1358,129 +1308,10 @@ function try_get_field(value3, field4, or_else) {
     return or_else();
   }
 }
-function inspect(v) {
-  const t = typeof v;
-  if (v === true)
-    return "True";
-  if (v === false)
-    return "False";
-  if (v === null)
-    return "//js(null)";
-  if (v === void 0)
-    return "Nil";
-  if (t === "string")
-    return inspectString(v);
-  if (t === "bigint" || t === "number")
-    return v.toString();
-  if (Array.isArray(v))
-    return `#(${v.map(inspect).join(", ")})`;
-  if (v instanceof List)
-    return inspectList(v);
-  if (v instanceof UtfCodepoint)
-    return inspectUtfCodepoint(v);
-  if (v instanceof BitArray)
-    return inspectBitArray(v);
-  if (v instanceof CustomType)
-    return inspectCustomType(v);
-  if (v instanceof Dict)
-    return inspectDict(v);
-  if (v instanceof Set)
-    return `//js(Set(${[...v].map(inspect).join(", ")}))`;
-  if (v instanceof RegExp)
-    return `//js(${v})`;
-  if (v instanceof Date)
-    return `//js(Date("${v.toISOString()}"))`;
-  if (v instanceof Function) {
-    const args = [];
-    for (const i of Array(v.length).keys())
-      args.push(String.fromCharCode(i + 97));
-    return `//fn(${args.join(", ")}) { ... }`;
-  }
-  return inspectObject(v);
-}
-function inspectString(str) {
-  let new_str = '"';
-  for (let i = 0; i < str.length; i++) {
-    let char = str[i];
-    switch (char) {
-      case "\n":
-        new_str += "\\n";
-        break;
-      case "\r":
-        new_str += "\\r";
-        break;
-      case "	":
-        new_str += "\\t";
-        break;
-      case "\f":
-        new_str += "\\f";
-        break;
-      case "\\":
-        new_str += "\\\\";
-        break;
-      case '"':
-        new_str += '\\"';
-        break;
-      default:
-        if (char < " " || char > "~" && char < "\xA0") {
-          new_str += "\\u{" + char.charCodeAt(0).toString(16).toUpperCase().padStart(4, "0") + "}";
-        } else {
-          new_str += char;
-        }
-    }
-  }
-  new_str += '"';
-  return new_str;
-}
-function inspectDict(map4) {
-  let body = "dict.from_list([";
-  let first3 = true;
-  map4.forEach((value3, key) => {
-    if (!first3)
-      body = body + ", ";
-    body = body + "#(" + inspect(key) + ", " + inspect(value3) + ")";
-    first3 = false;
-  });
-  return body + "])";
-}
-function inspectObject(v) {
-  const name = Object.getPrototypeOf(v)?.constructor?.name || "Object";
-  const props = [];
-  for (const k of Object.keys(v)) {
-    props.push(`${inspect(k)}: ${inspect(v[k])}`);
-  }
-  const body = props.length ? " " + props.join(", ") + " " : "";
-  const head = name === "Object" ? "" : name + " ";
-  return `//js(${head}{${body}})`;
-}
-function inspectCustomType(record) {
-  const props = Object.keys(record).map((label2) => {
-    const value3 = inspect(record[label2]);
-    return isNaN(parseInt(label2)) ? `${label2}: ${value3}` : value3;
-  }).join(", ");
-  return props ? `${record.constructor.name}(${props})` : record.constructor.name;
-}
-function inspectList(list) {
-  return `[${list.toArray().map(inspect).join(", ")}]`;
-}
-function inspectBitArray(bits) {
-  return `<<${Array.from(bits.buffer).join(", ")}>>`;
-}
-function inspectUtfCodepoint(codepoint2) {
-  return `//utfcodepoint(${String.fromCodePoint(codepoint2.value)})`;
-}
 
 // build/dev/javascript/gleam_stdlib/gleam/int.mjs
 function to_string2(x) {
   return to_string3(x);
-}
-
-// build/dev/javascript/gleam_stdlib/gleam/io.mjs
-function debug(term) {
-  let _pipe = term;
-  let _pipe$1 = inspect2(_pipe);
-  print_debug(_pipe$1);
-  return term;
 }
 
 // build/dev/javascript/gleam_stdlib/gleam/bool.mjs
@@ -2226,7 +2057,7 @@ var UserUpdatedGuess = class extends CustomType {
   }
 };
 function init2(_) {
-  return new Model(0, toList([]), toList([]), "United States", "");
+  return new Model(0, toList([]), toList([]), ["", ""], "");
 }
 function view(model) {
   let score = to_string2(model.score);
@@ -2239,7 +2070,7 @@ function view(model) {
     toList([
       field3(
         toList([]),
-        toList([text("Country: " + model.current_country)]),
+        toList([text("Country: " + model.current_country[0])]),
         input3(
           toList([
             value(model.current_guess),
@@ -2254,9 +2085,7 @@ function view(model) {
         toList([on_click(new Validate())]),
         toList([text("Submit")])
       ),
-      text("Score: " + score),
-      text("Correct: " + join2(model.correct, ", ")),
-      text("Incorrect: " + join2(model.incorrect, ", "))
+      text("Score: " + score)
     ])
   );
   return centre2(toList([style(styles)]), content);
@@ -2266,12 +2095,8 @@ var countries = /* @__PURE__ */ toList([
   ["Canada", "ottawa"]
 ]);
 function next_country(guessed) {
-  let country_names = map(countries, (c) => {
-    return c[0];
-  });
-  debug(country_names);
   let remaining_countries = (() => {
-    let _pipe = country_names;
+    let _pipe = countries;
     return filter(
       _pipe,
       (country) => {
@@ -2284,38 +2109,30 @@ function next_country(guessed) {
     let country = $[0];
     return country;
   } else {
-    return "Game Over";
+    return ["Game over", ""];
   }
 }
 function validate_country(model) {
-  let country = model.current_country;
-  let capital = (() => {
+  let capital_guess = (() => {
     let _pipe = model.current_guess;
     return lowercase2(_pipe);
   })();
-  let country_found = (() => {
-    let _pipe = countries;
-    return find(
-      _pipe,
-      (x) => {
-        return x[0] === country && x[1] === capital;
-      }
-    );
-  })();
-  if (country_found.isOk()) {
+  let guess_was_correct = capital_guess === model.current_country[1];
+  let joined_guesses = append(model.correct, model.incorrect);
+  if (guess_was_correct) {
     return model.withFields({
       score: model.score + 1,
-      correct: append(model.correct, toList([country])),
+      correct: append(model.correct, toList([model.current_country])),
       current_country: next_country(
-        append(model.correct, model.incorrect)
+        prepend(model.current_country, joined_guesses)
       ),
       current_guess: ""
     });
   } else {
     return model.withFields({
-      incorrect: append(model.incorrect, toList([country])),
+      incorrect: append(model.incorrect, toList([model.current_country])),
       current_country: next_country(
-        append(model.correct, model.incorrect)
+        prepend(model.current_country, joined_guesses)
       ),
       current_guess: ""
     });
@@ -2336,7 +2153,7 @@ function main() {
     throw makeError(
       "assignment_no_match",
       "capitals",
-      125,
+      114,
       "main",
       "Assignment pattern did not match",
       { value: $ }
