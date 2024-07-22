@@ -1,3 +1,4 @@
+import data.{get_countries}
 import gleam/int
 import gleam/io
 import gleam/list
@@ -19,6 +20,7 @@ pub type Model {
     incorrect: List(#(String, String)),
     current_country: #(String, String),
     current_guess: String,
+    countries_remaining: List(#(String, String)),
   )
 }
 
@@ -29,6 +31,7 @@ fn init(_flags) -> Model {
     incorrect: [],
     current_country: #("", ""),
     current_guess: "",
+    countries_remaining: get_countries(),
   )
 }
 
@@ -39,12 +42,23 @@ pub type Msg {
   UserUpdatedGuess(value: String)
 }
 
-const countries = [#("United States", "washington, dc"), #("Canada", "ottawa")]
+fn next_country(
+  countries_remaining: List(#(String, String)),
+) -> #(String, String) {
+  let next =
+    countries_remaining
+    |> list.first()
+
+  case next {
+    Ok(next) -> next
+    Error(_) -> #("", "")
+  }
+}
 
 fn validate_country(model: Model) -> Model {
   let capital_guess = model.current_guess |> string.lowercase()
   let guess_was_correct = capital_guess == model.current_country.1
-  let joined_guesses = list.append(model.correct, model.incorrect)
+  let next_country = next_country(model.countries_remaining)
 
   case guess_was_correct {
     True ->
@@ -52,27 +66,20 @@ fn validate_country(model: Model) -> Model {
         ..model,
         score: model.score + 1,
         correct: list.append(model.correct, [model.current_country]),
-        current_country: next_country([model.current_country, ..joined_guesses]),
+        current_country: next_country,
         current_guess: "",
+        countries_remaining: model.countries_remaining
+          |> list.drop(1),
       )
     False ->
       Model(
         ..model,
         incorrect: list.append(model.incorrect, [model.current_country]),
-        current_country: next_country([model.current_country, ..joined_guesses]),
+        current_country: next_country,
         current_guess: "",
+        countries_remaining: model.countries_remaining
+          |> list.drop(1),
       )
-  }
-}
-
-fn next_country(guessed: List(#(String, String))) -> #(String, String) {
-  let remaining_countries =
-    countries
-    |> list.filter(fn(country) { list.contains(guessed, country) == False })
-
-  case list.first(remaining_countries) {
-    Ok(country) -> country
-    Error(_) -> #("Game over", "")
   }
 }
 

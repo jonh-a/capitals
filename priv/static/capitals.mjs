@@ -222,6 +222,14 @@ function makeError(variant, module, line, fn, message, extra) {
   return error;
 }
 
+// build/dev/javascript/gleam_stdlib/gleam/order.mjs
+var Lt = class extends CustomType {
+};
+var Eq = class extends CustomType {
+};
+var Gt = class extends CustomType {
+};
+
 // build/dev/javascript/gleam_stdlib/gleam/option.mjs
 var Some = class extends CustomType {
   constructor(x0) {
@@ -241,6 +249,10 @@ function to_result(option, e) {
 }
 
 // build/dev/javascript/gleam_stdlib/gleam/list.mjs
+var Ascending = class extends CustomType {
+};
+var Descending = class extends CustomType {
+};
 function do_reverse(loop$remaining, loop$accumulator) {
   while (true) {
     let remaining = loop$remaining;
@@ -258,22 +270,6 @@ function do_reverse(loop$remaining, loop$accumulator) {
 function reverse(xs) {
   return do_reverse(xs, toList([]));
 }
-function contains(loop$list, loop$elem) {
-  while (true) {
-    let list = loop$list;
-    let elem = loop$elem;
-    if (list.hasLength(0)) {
-      return false;
-    } else if (list.atLeastLength(1) && isEqual(list.head, elem)) {
-      let first$1 = list.head;
-      return true;
-    } else {
-      let rest$1 = list.tail;
-      loop$list = rest$1;
-      loop$elem = elem;
-    }
-  }
-}
 function first(list) {
   if (list.hasLength(0)) {
     return new Error(void 0);
@@ -281,33 +277,6 @@ function first(list) {
     let x = list.head;
     return new Ok(x);
   }
-}
-function do_filter(loop$list, loop$fun, loop$acc) {
-  while (true) {
-    let list = loop$list;
-    let fun = loop$fun;
-    let acc = loop$acc;
-    if (list.hasLength(0)) {
-      return reverse(acc);
-    } else {
-      let x = list.head;
-      let xs = list.tail;
-      let new_acc = (() => {
-        let $ = fun(x);
-        if ($) {
-          return prepend(x, acc);
-        } else {
-          return acc;
-        }
-      })();
-      loop$list = xs;
-      loop$fun = fun;
-      loop$acc = new_acc;
-    }
-  }
-}
-function filter(list, predicate) {
-  return do_filter(list, predicate, toList([]));
 }
 function do_map(loop$list, loop$fun, loop$acc) {
   while (true) {
@@ -327,6 +296,24 @@ function do_map(loop$list, loop$fun, loop$acc) {
 }
 function map(list, fun) {
   return do_map(list, fun, toList([]));
+}
+function drop(loop$list, loop$n) {
+  while (true) {
+    let list = loop$list;
+    let n = loop$n;
+    let $ = n <= 0;
+    if ($) {
+      return list;
+    } else {
+      if (list.hasLength(0)) {
+        return toList([]);
+      } else {
+        let xs = list.tail;
+        loop$list = xs;
+        loop$n = n - 1;
+      }
+    }
+  }
 }
 function do_append(loop$first, loop$second) {
   while (true) {
@@ -369,6 +356,363 @@ function fold_right(list, initial, fun) {
     let rest$1 = list.tail;
     return fun(fold_right(rest$1, initial, fun), x);
   }
+}
+function sequences(loop$list, loop$compare, loop$growing, loop$direction, loop$prev, loop$acc) {
+  while (true) {
+    let list = loop$list;
+    let compare3 = loop$compare;
+    let growing = loop$growing;
+    let direction = loop$direction;
+    let prev = loop$prev;
+    let acc = loop$acc;
+    let growing$1 = prepend(prev, growing);
+    if (list.hasLength(0)) {
+      if (direction instanceof Ascending) {
+        return prepend(do_reverse(growing$1, toList([])), acc);
+      } else {
+        return prepend(growing$1, acc);
+      }
+    } else {
+      let new$1 = list.head;
+      let rest$1 = list.tail;
+      let $ = compare3(prev, new$1);
+      if ($ instanceof Gt && direction instanceof Descending) {
+        loop$list = rest$1;
+        loop$compare = compare3;
+        loop$growing = growing$1;
+        loop$direction = direction;
+        loop$prev = new$1;
+        loop$acc = acc;
+      } else if ($ instanceof Lt && direction instanceof Ascending) {
+        loop$list = rest$1;
+        loop$compare = compare3;
+        loop$growing = growing$1;
+        loop$direction = direction;
+        loop$prev = new$1;
+        loop$acc = acc;
+      } else if ($ instanceof Eq && direction instanceof Ascending) {
+        loop$list = rest$1;
+        loop$compare = compare3;
+        loop$growing = growing$1;
+        loop$direction = direction;
+        loop$prev = new$1;
+        loop$acc = acc;
+      } else if ($ instanceof Gt && direction instanceof Ascending) {
+        let acc$1 = (() => {
+          if (direction instanceof Ascending) {
+            return prepend(do_reverse(growing$1, toList([])), acc);
+          } else {
+            return prepend(growing$1, acc);
+          }
+        })();
+        if (rest$1.hasLength(0)) {
+          return prepend(toList([new$1]), acc$1);
+        } else {
+          let next = rest$1.head;
+          let rest$2 = rest$1.tail;
+          let direction$1 = (() => {
+            let $1 = compare3(new$1, next);
+            if ($1 instanceof Lt) {
+              return new Ascending();
+            } else if ($1 instanceof Eq) {
+              return new Ascending();
+            } else {
+              return new Descending();
+            }
+          })();
+          loop$list = rest$2;
+          loop$compare = compare3;
+          loop$growing = toList([new$1]);
+          loop$direction = direction$1;
+          loop$prev = next;
+          loop$acc = acc$1;
+        }
+      } else if ($ instanceof Lt && direction instanceof Descending) {
+        let acc$1 = (() => {
+          if (direction instanceof Ascending) {
+            return prepend(do_reverse(growing$1, toList([])), acc);
+          } else {
+            return prepend(growing$1, acc);
+          }
+        })();
+        if (rest$1.hasLength(0)) {
+          return prepend(toList([new$1]), acc$1);
+        } else {
+          let next = rest$1.head;
+          let rest$2 = rest$1.tail;
+          let direction$1 = (() => {
+            let $1 = compare3(new$1, next);
+            if ($1 instanceof Lt) {
+              return new Ascending();
+            } else if ($1 instanceof Eq) {
+              return new Ascending();
+            } else {
+              return new Descending();
+            }
+          })();
+          loop$list = rest$2;
+          loop$compare = compare3;
+          loop$growing = toList([new$1]);
+          loop$direction = direction$1;
+          loop$prev = next;
+          loop$acc = acc$1;
+        }
+      } else {
+        let acc$1 = (() => {
+          if (direction instanceof Ascending) {
+            return prepend(do_reverse(growing$1, toList([])), acc);
+          } else {
+            return prepend(growing$1, acc);
+          }
+        })();
+        if (rest$1.hasLength(0)) {
+          return prepend(toList([new$1]), acc$1);
+        } else {
+          let next = rest$1.head;
+          let rest$2 = rest$1.tail;
+          let direction$1 = (() => {
+            let $1 = compare3(new$1, next);
+            if ($1 instanceof Lt) {
+              return new Ascending();
+            } else if ($1 instanceof Eq) {
+              return new Ascending();
+            } else {
+              return new Descending();
+            }
+          })();
+          loop$list = rest$2;
+          loop$compare = compare3;
+          loop$growing = toList([new$1]);
+          loop$direction = direction$1;
+          loop$prev = next;
+          loop$acc = acc$1;
+        }
+      }
+    }
+  }
+}
+function merge_ascendings(loop$list1, loop$list2, loop$compare, loop$acc) {
+  while (true) {
+    let list1 = loop$list1;
+    let list2 = loop$list2;
+    let compare3 = loop$compare;
+    let acc = loop$acc;
+    if (list1.hasLength(0)) {
+      let list = list2;
+      return do_reverse(list, acc);
+    } else if (list2.hasLength(0)) {
+      let list = list1;
+      return do_reverse(list, acc);
+    } else {
+      let first1 = list1.head;
+      let rest1 = list1.tail;
+      let first22 = list2.head;
+      let rest2 = list2.tail;
+      let $ = compare3(first1, first22);
+      if ($ instanceof Lt) {
+        loop$list1 = rest1;
+        loop$list2 = list2;
+        loop$compare = compare3;
+        loop$acc = prepend(first1, acc);
+      } else if ($ instanceof Gt) {
+        loop$list1 = list1;
+        loop$list2 = rest2;
+        loop$compare = compare3;
+        loop$acc = prepend(first22, acc);
+      } else {
+        loop$list1 = list1;
+        loop$list2 = rest2;
+        loop$compare = compare3;
+        loop$acc = prepend(first22, acc);
+      }
+    }
+  }
+}
+function merge_ascending_pairs(loop$sequences, loop$compare, loop$acc) {
+  while (true) {
+    let sequences2 = loop$sequences;
+    let compare3 = loop$compare;
+    let acc = loop$acc;
+    if (sequences2.hasLength(0)) {
+      return do_reverse(acc, toList([]));
+    } else if (sequences2.hasLength(1)) {
+      let sequence2 = sequences2.head;
+      return do_reverse(
+        prepend(do_reverse(sequence2, toList([])), acc),
+        toList([])
+      );
+    } else {
+      let ascending1 = sequences2.head;
+      let ascending2 = sequences2.tail.head;
+      let rest$1 = sequences2.tail.tail;
+      let descending = merge_ascendings(
+        ascending1,
+        ascending2,
+        compare3,
+        toList([])
+      );
+      loop$sequences = rest$1;
+      loop$compare = compare3;
+      loop$acc = prepend(descending, acc);
+    }
+  }
+}
+function merge_descendings(loop$list1, loop$list2, loop$compare, loop$acc) {
+  while (true) {
+    let list1 = loop$list1;
+    let list2 = loop$list2;
+    let compare3 = loop$compare;
+    let acc = loop$acc;
+    if (list1.hasLength(0)) {
+      let list = list2;
+      return do_reverse(list, acc);
+    } else if (list2.hasLength(0)) {
+      let list = list1;
+      return do_reverse(list, acc);
+    } else {
+      let first1 = list1.head;
+      let rest1 = list1.tail;
+      let first22 = list2.head;
+      let rest2 = list2.tail;
+      let $ = compare3(first1, first22);
+      if ($ instanceof Lt) {
+        loop$list1 = list1;
+        loop$list2 = rest2;
+        loop$compare = compare3;
+        loop$acc = prepend(first22, acc);
+      } else if ($ instanceof Gt) {
+        loop$list1 = rest1;
+        loop$list2 = list2;
+        loop$compare = compare3;
+        loop$acc = prepend(first1, acc);
+      } else {
+        loop$list1 = rest1;
+        loop$list2 = list2;
+        loop$compare = compare3;
+        loop$acc = prepend(first1, acc);
+      }
+    }
+  }
+}
+function merge_descending_pairs(loop$sequences, loop$compare, loop$acc) {
+  while (true) {
+    let sequences2 = loop$sequences;
+    let compare3 = loop$compare;
+    let acc = loop$acc;
+    if (sequences2.hasLength(0)) {
+      return do_reverse(acc, toList([]));
+    } else if (sequences2.hasLength(1)) {
+      let sequence2 = sequences2.head;
+      return do_reverse(
+        prepend(do_reverse(sequence2, toList([])), acc),
+        toList([])
+      );
+    } else {
+      let descending1 = sequences2.head;
+      let descending2 = sequences2.tail.head;
+      let rest$1 = sequences2.tail.tail;
+      let ascending = merge_descendings(
+        descending1,
+        descending2,
+        compare3,
+        toList([])
+      );
+      loop$sequences = rest$1;
+      loop$compare = compare3;
+      loop$acc = prepend(ascending, acc);
+    }
+  }
+}
+function merge_all(loop$sequences, loop$direction, loop$compare) {
+  while (true) {
+    let sequences2 = loop$sequences;
+    let direction = loop$direction;
+    let compare3 = loop$compare;
+    if (sequences2.hasLength(0)) {
+      return toList([]);
+    } else if (sequences2.hasLength(1) && direction instanceof Ascending) {
+      let sequence2 = sequences2.head;
+      return sequence2;
+    } else if (sequences2.hasLength(1) && direction instanceof Descending) {
+      let sequence2 = sequences2.head;
+      return do_reverse(sequence2, toList([]));
+    } else if (direction instanceof Ascending) {
+      let sequences$1 = merge_ascending_pairs(sequences2, compare3, toList([]));
+      loop$sequences = sequences$1;
+      loop$direction = new Descending();
+      loop$compare = compare3;
+    } else {
+      let sequences$1 = merge_descending_pairs(sequences2, compare3, toList([]));
+      loop$sequences = sequences$1;
+      loop$direction = new Ascending();
+      loop$compare = compare3;
+    }
+  }
+}
+function sort(list, compare3) {
+  if (list.hasLength(0)) {
+    return toList([]);
+  } else if (list.hasLength(1)) {
+    let x = list.head;
+    return toList([x]);
+  } else {
+    let x = list.head;
+    let y = list.tail.head;
+    let rest$1 = list.tail.tail;
+    let direction = (() => {
+      let $ = compare3(x, y);
+      if ($ instanceof Lt) {
+        return new Ascending();
+      } else if ($ instanceof Eq) {
+        return new Ascending();
+      } else {
+        return new Descending();
+      }
+    })();
+    let sequences$1 = sequences(
+      rest$1,
+      compare3,
+      toList([x]),
+      direction,
+      y,
+      toList([])
+    );
+    return merge_all(sequences$1, new Ascending(), compare3);
+  }
+}
+function do_shuffle_pair_unwrap(loop$list, loop$acc) {
+  while (true) {
+    let list = loop$list;
+    let acc = loop$acc;
+    if (list.hasLength(0)) {
+      return acc;
+    } else {
+      let elem_pair = list.head;
+      let enumerable = list.tail;
+      loop$list = enumerable;
+      loop$acc = prepend(elem_pair[1], acc);
+    }
+  }
+}
+function do_shuffle_by_pair_indexes(list_of_pairs) {
+  return sort(
+    list_of_pairs,
+    (a_pair, b_pair) => {
+      return compare(a_pair[0], b_pair[0]);
+    }
+  );
+}
+function shuffle(list) {
+  let _pipe = list;
+  let _pipe$1 = fold(
+    _pipe,
+    toList([]),
+    (acc, a) => {
+      return prepend([random_uniform(), a], acc);
+    }
+  );
+  let _pipe$2 = do_shuffle_by_pair_indexes(_pipe$1);
+  return do_shuffle_pair_unwrap(_pipe$2, toList([]));
 }
 
 // build/dev/javascript/gleam_stdlib/gleam/result.mjs
@@ -1239,6 +1583,13 @@ var unicode_whitespaces = [
 ].join();
 var left_trim_regex = new RegExp(`^([${unicode_whitespaces}]*)`, "g");
 var right_trim_regex = new RegExp(`([${unicode_whitespaces}]*)$`, "g");
+function random_uniform() {
+  const random_uniform_result = Math.random();
+  if (random_uniform_result === 1) {
+    return random_uniform();
+  }
+  return random_uniform_result;
+}
 function map_get(map4, key) {
   const value3 = map4.get(key, NOT_FOUND);
   if (value3 === NOT_FOUND) {
@@ -1306,6 +1657,21 @@ function try_get_field(value3, field4, or_else) {
     return field4 in value3 ? new Ok(new Some(value3[field4])) : or_else();
   } catch {
     return or_else();
+  }
+}
+
+// build/dev/javascript/gleam_stdlib/gleam/float.mjs
+function compare(a, b) {
+  let $ = a === b;
+  if ($) {
+    return new Eq();
+  } else {
+    let $1 = a < b;
+    if ($1) {
+      return new Lt();
+    } else {
+      return new Gt();
+    }
   }
 }
 
@@ -2037,15 +2403,22 @@ var centre2 = centre;
 var field3 = field2;
 var input3 = input2;
 
+// build/dev/javascript/capitals/data.mjs
+function get_countries() {
+  let _pipe = toList([["United States", "washington, dc"], ["Canada", "ottawa"]]);
+  return shuffle(_pipe);
+}
+
 // build/dev/javascript/capitals/capitals.mjs
 var Model = class extends CustomType {
-  constructor(score, correct, incorrect, current_country, current_guess) {
+  constructor(score, correct, incorrect, current_country, current_guess, countries_remaining) {
     super();
     this.score = score;
     this.correct = correct;
     this.incorrect = incorrect;
     this.current_country = current_country;
     this.current_guess = current_guess;
+    this.countries_remaining = countries_remaining;
   }
 };
 var Validate = class extends CustomType {
@@ -2057,7 +2430,57 @@ var UserUpdatedGuess = class extends CustomType {
   }
 };
 function init2(_) {
-  return new Model(0, toList([]), toList([]), ["", ""], "");
+  return new Model(0, toList([]), toList([]), ["", ""], "", get_countries());
+}
+function next_country(countries_remaining) {
+  let next = (() => {
+    let _pipe = countries_remaining;
+    return first(_pipe);
+  })();
+  if (next.isOk()) {
+    let next$1 = next[0];
+    return next$1;
+  } else {
+    return ["", ""];
+  }
+}
+function validate_country(model) {
+  let capital_guess = (() => {
+    let _pipe = model.current_guess;
+    return lowercase2(_pipe);
+  })();
+  let guess_was_correct = capital_guess === model.current_country[1];
+  let next_country$1 = next_country(model.countries_remaining);
+  if (guess_was_correct) {
+    return model.withFields({
+      score: model.score + 1,
+      correct: append(model.correct, toList([model.current_country])),
+      current_country: next_country$1,
+      current_guess: "",
+      countries_remaining: (() => {
+        let _pipe = model.countries_remaining;
+        return drop(_pipe, 1);
+      })()
+    });
+  } else {
+    return model.withFields({
+      incorrect: append(model.incorrect, toList([model.current_country])),
+      current_country: next_country$1,
+      current_guess: "",
+      countries_remaining: (() => {
+        let _pipe = model.countries_remaining;
+        return drop(_pipe, 1);
+      })()
+    });
+  }
+}
+function update(model, msg) {
+  if (msg instanceof Validate) {
+    return validate_country(model);
+  } else {
+    let value3 = msg.value;
+    return model.withFields({ current_guess: value3 });
+  }
 }
 function view(model) {
   let score = to_string2(model.score);
@@ -2090,62 +2513,6 @@ function view(model) {
   );
   return centre2(toList([style(styles)]), content);
 }
-var countries = /* @__PURE__ */ toList([
-  ["United States", "washington, dc"],
-  ["Canada", "ottawa"]
-]);
-function next_country(guessed) {
-  let remaining_countries = (() => {
-    let _pipe = countries;
-    return filter(
-      _pipe,
-      (country) => {
-        return contains(guessed, country) === false;
-      }
-    );
-  })();
-  let $ = first(remaining_countries);
-  if ($.isOk()) {
-    let country = $[0];
-    return country;
-  } else {
-    return ["Game over", ""];
-  }
-}
-function validate_country(model) {
-  let capital_guess = (() => {
-    let _pipe = model.current_guess;
-    return lowercase2(_pipe);
-  })();
-  let guess_was_correct = capital_guess === model.current_country[1];
-  let joined_guesses = append(model.correct, model.incorrect);
-  if (guess_was_correct) {
-    return model.withFields({
-      score: model.score + 1,
-      correct: append(model.correct, toList([model.current_country])),
-      current_country: next_country(
-        prepend(model.current_country, joined_guesses)
-      ),
-      current_guess: ""
-    });
-  } else {
-    return model.withFields({
-      incorrect: append(model.incorrect, toList([model.current_country])),
-      current_country: next_country(
-        prepend(model.current_country, joined_guesses)
-      ),
-      current_guess: ""
-    });
-  }
-}
-function update(model, msg) {
-  if (msg instanceof Validate) {
-    return validate_country(model);
-  } else {
-    let value3 = msg.value;
-    return model.withFields({ current_guess: value3 });
-  }
-}
 function main() {
   let app = simple(init2, update, view);
   let $ = start3(app, "#app", void 0);
@@ -2153,7 +2520,7 @@ function main() {
     throw makeError(
       "assignment_no_match",
       "capitals",
-      114,
+      121,
       "main",
       "Assignment pattern did not match",
       { value: $ }
