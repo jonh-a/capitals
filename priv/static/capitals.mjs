@@ -40,10 +40,10 @@ var List = class {
     return desired === 0;
   }
   countLength() {
-    let length2 = 0;
+    let length3 = 0;
     for (let _ of this)
-      length2++;
-    return length2;
+      length3++;
+    return length3;
   }
 };
 function prepend(element2, tail) {
@@ -253,6 +253,22 @@ var Ascending = class extends CustomType {
 };
 var Descending = class extends CustomType {
 };
+function count_length(loop$list, loop$count) {
+  while (true) {
+    let list = loop$list;
+    let count = loop$count;
+    if (list.atLeastLength(1)) {
+      let list$1 = list.tail;
+      loop$list = list$1;
+      loop$count = count + 1;
+    } else {
+      return count;
+    }
+  }
+}
+function length(list) {
+  return count_length(list, 0);
+}
 function do_reverse(loop$remaining, loop$accumulator) {
   while (true) {
     let remaining = loop$remaining;
@@ -2411,7 +2427,7 @@ function get_countries() {
 
 // build/dev/javascript/capitals/capitals.mjs
 var Model = class extends CustomType {
-  constructor(score, correct, incorrect, current_country, current_guess, countries_remaining) {
+  constructor(score, correct, incorrect, current_country, current_guess, countries_remaining, game_over) {
     super();
     this.score = score;
     this.correct = correct;
@@ -2419,6 +2435,7 @@ var Model = class extends CustomType {
     this.current_country = current_country;
     this.current_guess = current_guess;
     this.countries_remaining = countries_remaining;
+    this.game_over = game_over;
   }
 };
 var Validate = class extends CustomType {
@@ -2430,7 +2447,15 @@ var UserUpdatedGuess = class extends CustomType {
   }
 };
 function init2(_) {
-  return new Model(0, toList([]), toList([]), ["", ""], "", get_countries());
+  return new Model(
+    0,
+    toList([]),
+    toList([]),
+    ["", ""],
+    "",
+    get_countries(),
+    false
+  );
 }
 function next_country(countries_remaining) {
   let next = (() => {
@@ -2451,22 +2476,36 @@ function validate_country(model) {
   })();
   let guess_was_correct = capital_guess === model.current_country[1];
   let next_country$1 = next_country(model.countries_remaining);
-  if (guess_was_correct) {
-    return model.withFields({
+  let is_game_over = isEqual(next_country$1, ["", ""]);
+  let updated_model = model.withFields({
+    current_country: next_country$1,
+    current_guess: "",
+    game_over: is_game_over
+  });
+  if (guess_was_correct && is_game_over) {
+    return updated_model.withFields({
       score: model.score + 1,
       correct: append(model.correct, toList([model.current_country])),
-      current_country: next_country$1,
-      current_guess: "",
+      countries_remaining: toList([])
+    });
+  } else if (!guess_was_correct && is_game_over) {
+    return updated_model.withFields({
+      incorrect: append(model.incorrect, toList([model.current_country])),
+      countries_remaining: toList([]),
+      game_over: true
+    });
+  } else if (guess_was_correct && !is_game_over) {
+    return updated_model.withFields({
+      score: model.score + 1,
+      correct: append(model.correct, toList([model.current_country])),
       countries_remaining: (() => {
         let _pipe = model.countries_remaining;
         return drop(_pipe, 1);
       })()
     });
   } else {
-    return model.withFields({
+    return updated_model.withFields({
       incorrect: append(model.incorrect, toList([model.current_country])),
-      current_country: next_country$1,
-      current_guess: "",
       countries_remaining: (() => {
         let _pipe = model.countries_remaining;
         return drop(_pipe, 1);
@@ -2489,28 +2528,47 @@ function view(model) {
     ["height", "100vh"],
     ["padding", "1rem"]
   ]);
-  let content = fragment(
-    toList([
-      field3(
-        toList([]),
-        toList([text("Country: " + model.current_country[0])]),
-        input3(
-          toList([
-            value(model.current_guess),
-            on_input((var0) => {
-              return new UserUpdatedGuess(var0);
-            })
-          ])
-        ),
-        toList([])
-      ),
-      button3(
-        toList([on_click(new Validate())]),
-        toList([text("Submit")])
-      ),
-      text("Score: " + score)
-    ])
-  );
+  let content = (() => {
+    let $ = model.game_over;
+    if (!$) {
+      return fragment(
+        toList([
+          field3(
+            toList([]),
+            toList([text("Country: " + model.current_country[0])]),
+            input3(
+              toList([
+                value(model.current_guess),
+                on_input(
+                  (var0) => {
+                    return new UserUpdatedGuess(var0);
+                  }
+                )
+              ])
+            ),
+            toList([])
+          ),
+          button3(
+            toList([on_click(new Validate())]),
+            toList([text("Submit")])
+          ),
+          text("Score: " + score)
+        ])
+      );
+    } else {
+      return fragment(
+        toList([
+          text(
+            "Game over! Score: " + (() => {
+              let _pipe = model.correct;
+              let _pipe$1 = length(_pipe);
+              return to_string2(_pipe$1);
+            })()
+          )
+        ])
+      );
+    }
+  })();
   return centre2(toList([style(styles)]), content);
 }
 function main() {
@@ -2520,7 +2578,7 @@ function main() {
     throw makeError(
       "assignment_no_match",
       "capitals",
-      121,
+      151,
       "main",
       "Assignment pattern did not match",
       { value: $ }
