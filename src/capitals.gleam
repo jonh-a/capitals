@@ -14,10 +14,10 @@ import lustre/ui
 pub type Model {
   Model(
     score: Int,
-    correct: List(#(String, String)),
-    incorrect: List(#(String, String)),
+    correct: List(#(String, String, String)),
+    incorrect: List(#(String, String, String)),
     current_guess: String,
-    countries_remaining: List(#(String, String)),
+    countries_remaining: List(#(String, String, String)),
     game_over: Bool,
     paused: Bool,
   )
@@ -45,20 +45,22 @@ pub type Msg {
 
 // fetch first country from countries_remaining list
 fn get_current_country(
-  countries_remaining: List(#(String, String)),
-) -> #(String, String) {
+  countries_remaining: List(#(String, String, String)),
+) -> #(String, String, String) {
   let this =
     countries_remaining
     |> list.first()
 
   case this {
     Ok(this) -> this
-    Error(_) -> #("", "")
+    Error(_) -> #("", "", "")
   }
 }
 
 // check to see if the current country is the last country in the list
-fn has_next_country(countries_remaining: List(#(String, String))) -> Bool {
+fn has_next_country(
+  countries_remaining: List(#(String, String, String)),
+) -> Bool {
   let next =
     countries_remaining
     |> list.drop(1)
@@ -79,47 +81,45 @@ fn handle_button_click(model: Model) -> Model {
 
   let updated_model = Model(..model, current_guess: "", game_over: is_game_over)
 
-  case model.paused, is_game_over {
-    True, False ->
+  case model.paused, is_game_over, guess_was_correct {
+    True, False, _ ->
       Model(
         ..model,
-        countries_remaining: model.countries_remaining
-          |> list.drop(1),
+        countries_remaining: model.countries_remaining |> list.drop(1),
         paused: False,
       )
-    True, True -> Model(..model, paused: False)
-    False, _ ->
-      case guess_was_correct, is_game_over {
-        True, True ->
-          Model(
-            ..updated_model,
-            score: model.score + 1,
-            correct: list.append(model.correct, [current_country]),
-            countries_remaining: [],
-          )
-        False, True ->
-          Model(
-            ..updated_model,
-            incorrect: list.append(model.incorrect, [current_country]),
-            countries_remaining: [],
-            game_over: True,
-            paused: True,
-          )
-        True, False ->
-          Model(
-            ..updated_model,
-            score: model.score + 1,
-            correct: list.append(model.correct, [current_country]),
-            countries_remaining: model.countries_remaining
-              |> list.drop(1),
-          )
-        False, False ->
-          Model(
-            ..updated_model,
-            incorrect: list.append(model.incorrect, [current_country]),
-            paused: True,
-          )
-      }
+
+    True, True, _ -> Model(..model, paused: False)
+
+    False, True, True ->
+      Model(
+        ..updated_model,
+        score: model.score + 1,
+        correct: list.append(model.correct, [current_country]),
+        countries_remaining: [],
+      )
+
+    False, True, False ->
+      Model(
+        ..updated_model,
+        incorrect: list.append(model.incorrect, [current_country]),
+        paused: True,
+      )
+
+    False, False, True ->
+      Model(
+        ..updated_model,
+        score: model.score + 1,
+        correct: list.append(model.correct, [current_country]),
+        countries_remaining: model.countries_remaining |> list.drop(1),
+      )
+
+    False, False, False ->
+      Model(
+        ..updated_model,
+        incorrect: list.append(model.incorrect, [current_country]),
+        paused: True,
+      )
   }
 }
 
@@ -178,7 +178,7 @@ fn quiz_input(model: Model) -> Element(Msg) {
   html.div([], [
     ui.field(
       [],
-      [element.text(current_country.0)],
+      [element.text(current_country.0 <> " " <> current_country.2)],
       ui.input([
         attribute.value(input_text),
         event.on_input(UserUpdatedGuess),
@@ -202,7 +202,7 @@ fn missed_table(model: Model) -> List(Element(Msg)) {
       html.ul(
         [],
         model.incorrect
-          |> list.map(fn(country: #(String, String)) {
+          |> list.map(fn(country: #(String, String, String)) {
             html.li([], [
               element.text("❌ " <> country.0 <> " - " <> country.1),
             ])
