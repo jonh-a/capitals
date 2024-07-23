@@ -364,15 +364,6 @@ function fold(loop$list, loop$initial, loop$fun) {
     }
   }
 }
-function fold_right(list, initial, fun) {
-  if (list.hasLength(0)) {
-    return initial;
-  } else {
-    let x = list.head;
-    let rest$1 = list.tail;
-    return fun(fold_right(rest$1, initial, fun), x);
-  }
-}
 function sequences(loop$list, loop$compare, loop$growing, loop$direction, loop$prev, loop$acc) {
   while (true) {
     let list = loop$list;
@@ -1735,13 +1726,6 @@ var Element = class extends CustomType {
     this.void = void$;
   }
 };
-var Fragment = class extends CustomType {
-  constructor(elements, key) {
-    super();
-    this.elements = elements;
-    this.key = key;
-  }
-};
 var Attribute = class extends CustomType {
   constructor(x0, x1, as_property) {
     super();
@@ -1825,25 +1809,6 @@ function element(tag2, attrs, children) {
 }
 function text(content) {
   return new Text(content);
-}
-function flatten_fragment_elements(elements) {
-  return fold_right(
-    elements,
-    toList([]),
-    (new_elements, element2) => {
-      if (element2 instanceof Fragment) {
-        let fr_elements = element2.elements;
-        return append(fr_elements, new_elements);
-      } else {
-        let el2 = element2;
-        return prepend(el2, new_elements);
-      }
-    }
-  );
-}
-function fragment(elements) {
-  let _pipe = flatten_fragment_elements(elements);
-  return new Fragment(_pipe, "");
 }
 
 // build/dev/javascript/lustre/lustre/internals/runtime.mjs
@@ -2313,6 +2278,12 @@ function start3(app, selector, flags) {
 }
 
 // build/dev/javascript/lustre/lustre/element/html.mjs
+function h1(attrs, children) {
+  return element("h1", attrs, children);
+}
+function h2(attrs, children) {
+  return element("h2", attrs, children);
+}
 function div(attrs, children) {
   return element("div", attrs, children);
 }
@@ -2402,18 +2373,36 @@ function input2(attributes) {
   );
 }
 
+// build/dev/javascript/lustre_ui/lustre/ui/layout/aside.mjs
+function of3(element2, attributes, side, main2) {
+  return element2(
+    prepend(class$("lustre-ui-aside"), attributes),
+    toList([side, main2])
+  );
+}
+function aside(attributes, side, main2) {
+  return of3(div, attributes, side, main2);
+}
+function content_first() {
+  return class$("content-first");
+}
+function align_centre() {
+  return class$("align-centre");
+}
+
 // build/dev/javascript/lustre_ui/lustre/ui/layout/centre.mjs
-function of3(element2, attributes, children) {
+function of4(element2, attributes, children) {
   return element2(
     prepend(class$("lustre-ui-centre"), attributes),
     toList([children])
   );
 }
 function centre(attributes, children) {
-  return of3(div, attributes, children);
+  return of4(div, attributes, children);
 }
 
 // build/dev/javascript/lustre_ui/lustre/ui.mjs
+var aside2 = aside;
 var button3 = button2;
 var centre2 = centre;
 var field3 = field2;
@@ -2524,23 +2513,27 @@ function update(model, msg) {
   }
 }
 function view(model) {
-  let score = to_string2(model.score);
   let styles = toList([
     ["width", "100vw"],
     ["height", "100vh"],
     ["padding", "1rem"]
   ]);
+  let score = (() => {
+    let _pipe = model.correct;
+    let _pipe$1 = length(_pipe);
+    return to_string2(_pipe$1);
+  })();
   let content = (() => {
     let $ = model.game_over;
     if (!$) {
-      return fragment(
-        toList([
+      return centre2(
+        toList([style(styles)]),
+        aside2(
+          toList([content_first(), align_centre()]),
           field3(
             toList([]),
             toList([
-              text(
-                "Country: " + current_country(model.countries_remaining)[0]
-              )
+              text(current_country(model.countries_remaining)[0])
             ]),
             input3(
               toList([
@@ -2556,26 +2549,24 @@ function view(model) {
           ),
           button3(
             toList([on_click(new Validate())]),
-            toList([text("Submit")])
-          ),
-          text("Score: " + score)
-        ])
+            toList([text("Guess")])
+          )
+        )
       );
     } else {
-      return fragment(
-        toList([
-          text(
-            "Game over! Score: " + (() => {
-              let _pipe = model.correct;
-              let _pipe$1 = length(_pipe);
-              return to_string2(_pipe$1);
-            })()
-          )
-        ])
+      return centre2(
+        toList([style(styles)]),
+        div(
+          toList([]),
+          toList([
+            h1(toList([]), toList([text("game over!")])),
+            h2(toList([]), toList([text("score: " + score)]))
+          ])
+        )
       );
     }
   })();
-  return centre2(toList([style(styles)]), content);
+  return content;
 }
 function main() {
   let app = simple(init2, update, view);
@@ -2584,7 +2575,7 @@ function main() {
     throw makeError(
       "assignment_no_match",
       "capitals",
-      159,
+      155,
       "main",
       "Assignment pattern did not match",
       { value: $ }

@@ -1,6 +1,5 @@
 import data.{get_countries}
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/string
 import lustre
@@ -117,41 +116,38 @@ pub fn update(model: Model, msg: Msg) -> Model {
 
 // VIEW ------------------------------------------------------------------------
 
-pub fn view(model: Model) -> element.Element(Msg) {
-  let score = int.to_string(model.score)
+pub fn view(model: Model) -> Element(Msg) {
   let styles = [#("width", "100vw"), #("height", "100vh"), #("padding", "1rem")]
+  let score = model.correct |> list.length() |> int.to_string()
 
   let content = case model.game_over {
     False ->
-      element.fragment([
-        ui.field(
-          [],
-          [
-            element.text(
-              "Country: " <> current_country(model.countries_remaining).0,
-            ),
-          ],
-          ui.input([
-            attribute.value(model.current_guess),
-            event.on_input(UserUpdatedGuess),
-          ]),
-          [],
+      ui.centre(
+        [attribute.style(styles)],
+        ui.aside(
+          [aside.content_first(), aside.align_centre()],
+          ui.field(
+            [],
+            [element.text(current_country(model.countries_remaining).0)],
+            ui.input([
+              attribute.value(model.current_guess),
+              event.on_input(UserUpdatedGuess),
+            ]),
+            [],
+          ),
+          ui.button([event.on_click(Validate)], [element.text("Guess")]),
         ),
-        ui.button([event.on_click(Validate)], [element.text("Submit")]),
-        element.text("Score: " <> score),
-        // element.text("Correct: " <> string.join(model.correct, ", ")),
-      // element.text("Incorrect: " <> string.join(model.incorrect, ", ")),
-      ])
+      )
     True ->
-      element.fragment([
-        element.text(
-          "Game over! Score: "
-          <> model.correct |> list.length() |> int.to_string(),
-        ),
-      ])
+      ui.centre(
+        [attribute.style(styles)],
+        html.div([], [
+          html.h1([], [element.text("game over!")]),
+          html.h2([], [element.text("score: " <> score)]),
+        ]),
+      )
   }
-
-  ui.centre([attribute.style(styles)], content)
+  // ui.centre([attribute.style(styles)], content)
 }
 
 pub fn main() {
