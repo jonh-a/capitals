@@ -40,10 +40,10 @@ var List = class {
     return desired === 0;
   }
   countLength() {
-    let length3 = 0;
+    let length4 = 0;
     for (let _ of this)
-      length3++;
-    return length3;
+      length4++;
+    return length4;
   }
 };
 function prepend(element2, tail) {
@@ -760,6 +760,9 @@ function to_string(builder) {
 }
 
 // build/dev/javascript/gleam_stdlib/gleam/string.mjs
+function length3(string3) {
+  return string_length(string3);
+}
 function lowercase2(string3) {
   return lowercase(string3);
 }
@@ -1558,6 +1561,26 @@ function identity(x) {
 function to_string3(term) {
   return term.toString();
 }
+function string_length(string3) {
+  if (string3 === "") {
+    return 0;
+  }
+  const iterator = graphemes_iterator(string3);
+  if (iterator) {
+    let i = 0;
+    for (const _ of iterator) {
+      i++;
+    }
+    return i;
+  } else {
+    return string3.match(/./gsu).length;
+  }
+}
+function graphemes_iterator(string3) {
+  if (Intl && Intl.Segmenter) {
+    return new Intl.Segmenter().segment(string3)[Symbol.iterator]();
+  }
+}
 function lowercase(string3) {
   return string3.toLowerCase();
 }
@@ -2281,9 +2304,6 @@ function start3(app, selector, flags) {
 function h1(attrs, children) {
   return element("h1", attrs, children);
 }
-function h2(attrs, children) {
-  return element("h2", attrs, children);
-}
 function div(attrs, children) {
   return element("div", attrs, children);
 }
@@ -2308,6 +2328,16 @@ function on_click(msg) {
   return on2("click", (_) => {
     return new Ok(msg);
   });
+}
+function on_keypress(msg) {
+  return on2(
+    "keypress",
+    (event2) => {
+      let _pipe = event2;
+      let _pipe$1 = field("key", string)(_pipe);
+      return map2(_pipe$1, msg);
+    }
+  );
 }
 function value2(event2) {
   let _pipe = event2;
@@ -2373,36 +2403,18 @@ function input2(attributes) {
   );
 }
 
-// build/dev/javascript/lustre_ui/lustre/ui/layout/aside.mjs
-function of3(element2, attributes, side, main2) {
-  return element2(
-    prepend(class$("lustre-ui-aside"), attributes),
-    toList([side, main2])
-  );
-}
-function aside(attributes, side, main2) {
-  return of3(div, attributes, side, main2);
-}
-function content_first() {
-  return class$("content-first");
-}
-function align_centre() {
-  return class$("align-centre");
-}
-
 // build/dev/javascript/lustre_ui/lustre/ui/layout/centre.mjs
-function of4(element2, attributes, children) {
+function of3(element2, attributes, children) {
   return element2(
     prepend(class$("lustre-ui-centre"), attributes),
     toList([children])
   );
 }
 function centre(attributes, children) {
-  return of4(div, attributes, children);
+  return of3(div, attributes, children);
 }
 
 // build/dev/javascript/lustre_ui/lustre/ui.mjs
-var aside2 = aside;
 var button3 = button2;
 var centre2 = centre;
 var field3 = field2;
@@ -2432,6 +2444,12 @@ var UserUpdatedGuess = class extends CustomType {
   constructor(value3) {
     super();
     this.value = value3;
+  }
+};
+var UserKeyPress = class extends CustomType {
+  constructor(key) {
+    super();
+    this.key = key;
   }
 };
 function init2(_) {
@@ -2504,12 +2522,33 @@ function validate_country(model) {
     });
   }
 }
+function handle_key_press(key, model) {
+  let $ = (() => {
+    let _pipe = model.current_guess;
+    return length3(_pipe);
+  })();
+  if ($ === 0) {
+    return model;
+  } else if (key === "Enter") {
+    return validate_country(model);
+  } else {
+    return model;
+  }
+}
 function update(model, msg) {
   if (msg instanceof Validate) {
     return validate_country(model);
-  } else {
+  } else if (msg instanceof UserUpdatedGuess) {
     let value3 = msg.value;
-    return model.withFields({ current_guess: value3 });
+    return model.withFields({
+      current_guess: (() => {
+        let _pipe = value3;
+        return lowercase2(_pipe);
+      })()
+    });
+  } else {
+    let key = msg.key;
+    return handle_key_press(key, model);
   }
 }
 function view(model) {
@@ -2518,18 +2557,19 @@ function view(model) {
     ["height", "100vh"],
     ["padding", "1rem"]
   ]);
+  let button_styles = toList([["width", "100%"], ["margin-top", "1em"]]);
   let score = (() => {
     let _pipe = model.correct;
     let _pipe$1 = length(_pipe);
     return to_string2(_pipe$1);
   })();
-  let content = (() => {
-    let $ = model.game_over;
-    if (!$) {
-      return centre2(
-        toList([style(styles)]),
-        aside2(
-          toList([content_first(), align_centre()]),
+  let $ = model.game_over;
+  if (!$) {
+    return centre2(
+      toList([style(styles)]),
+      div(
+        toList([]),
+        toList([
           field3(
             toList([]),
             toList([
@@ -2542,31 +2582,38 @@ function view(model) {
                   (var0) => {
                     return new UserUpdatedGuess(var0);
                   }
-                )
+                ),
+                on_keypress((var0) => {
+                  return new UserKeyPress(var0);
+                })
               ])
             ),
             toList([])
           ),
           button3(
-            toList([on_click(new Validate())]),
+            toList([
+              on_click(new Validate()),
+              style(button_styles)
+            ]),
             toList([text("Guess")])
           )
-        )
-      );
-    } else {
-      return centre2(
-        toList([style(styles)]),
-        div(
-          toList([]),
-          toList([
-            h1(toList([]), toList([text("game over!")])),
-            h2(toList([]), toList([text("score: " + score)]))
-          ])
-        )
-      );
-    }
-  })();
-  return content;
+        ])
+      )
+    );
+  } else {
+    return centre2(
+      toList([style(styles)]),
+      div(
+        toList([]),
+        toList([
+          h1(
+            toList([]),
+            toList([text("game over! score: " + score)])
+          )
+        ])
+      )
+    );
+  }
 }
 function main() {
   let app = simple(init2, update, view);
@@ -2575,7 +2622,7 @@ function main() {
     throw makeError(
       "assignment_no_match",
       "capitals",
-      155,
+      166,
       "main",
       "Assignment pattern did not match",
       { value: $ }

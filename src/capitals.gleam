@@ -8,7 +8,6 @@ import lustre/element.{type Element}
 import lustre/element/html
 import lustre/event
 import lustre/ui
-import lustre/ui/layout/aside
 
 // MODEL -----------------------------------------------------------------------
 
@@ -39,6 +38,7 @@ fn init(_flags) -> Model {
 pub type Msg {
   Validate
   UserUpdatedGuess(value: String)
+  UserKeyPress(key: String)
 }
 
 fn current_country(
@@ -107,10 +107,20 @@ fn validate_country(model: Model) -> Model {
   }
 }
 
+fn handle_key_press(key: String, model: Model) -> Model {
+  case key, model.current_guess |> string.length {
+    _, 0 -> model
+    "Enter", _ -> validate_country(model)
+    _, _ -> model
+  }
+}
+
 pub fn update(model: Model, msg: Msg) -> Model {
   case msg {
     Validate -> validate_country(model)
-    UserUpdatedGuess(value) -> Model(..model, current_guess: value)
+    UserUpdatedGuess(value) ->
+      Model(..model, current_guess: value |> string.lowercase())
+    UserKeyPress(key) -> handle_key_press(key, model)
   }
 }
 
@@ -118,36 +128,37 @@ pub fn update(model: Model, msg: Msg) -> Model {
 
 pub fn view(model: Model) -> Element(Msg) {
   let styles = [#("width", "100vw"), #("height", "100vh"), #("padding", "1rem")]
+  let button_styles = [#("width", "100%"), #("margin-top", "1em")]
   let score = model.correct |> list.length() |> int.to_string()
 
-  let content = case model.game_over {
+  case model.game_over {
     False ->
       ui.centre(
         [attribute.style(styles)],
-        ui.aside(
-          [aside.content_first(), aside.align_centre()],
+        html.div([], [
           ui.field(
             [],
             [element.text(current_country(model.countries_remaining).0)],
             ui.input([
               attribute.value(model.current_guess),
               event.on_input(UserUpdatedGuess),
+              event.on_keypress(UserKeyPress),
             ]),
             [],
           ),
-          ui.button([event.on_click(Validate)], [element.text("Guess")]),
-        ),
+          ui.button([event.on_click(Validate), attribute.style(button_styles)], [
+            element.text("Guess"),
+          ]),
+        ]),
       )
     True ->
       ui.centre(
         [attribute.style(styles)],
         html.div([], [
-          html.h1([], [element.text("game over!")]),
-          html.h2([], [element.text("score: " <> score)]),
+          html.h1([], [element.text("game over! score: " <> score)]),
         ]),
       )
   }
-  // ui.centre([attribute.style(styles)], content)
 }
 
 pub fn main() {
