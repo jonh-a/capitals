@@ -156,8 +156,28 @@ pub fn view(model: Model) -> Element(Msg) {
         [attribute.style(styles)],
         html.div([], [
           html.h1([], [element.text("game over! score: " <> score)]),
+          ..missed_table(model)
         ]),
       )
+  }
+}
+
+fn missed_table(model: Model) -> List(Element(Msg)) {
+  case list.length(model.incorrect) {
+    0 -> [html.h1([], [element.text("you didn't miss any!")])]
+    _ -> [
+      html.h1([], [element.text("you got these wrong: ")]),
+      html.table(
+        [],
+        model.incorrect
+          |> list.map(fn(country: #(String, String)) {
+            html.tr([], [
+              html.td([], [element.text(country.0)]),
+              html.td([], [element.text(country.1)]),
+            ])
+          }),
+      ),
+    ]
   }
 }
 

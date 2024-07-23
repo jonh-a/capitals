@@ -1,6 +1,10 @@
 import gleam/list
 
 pub fn get_countries() -> List(#(String, String)) {
-  [#("United States", "washington, dc"), #("Canada", "ottawa")]
+  [
+    #("united states", "washington, dc"),
+    #("canada", "ottawa"),
+    #("mexico", "mexico city"),
+  ]
   |> list.shuffle()
 }
