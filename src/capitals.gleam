@@ -127,39 +127,44 @@ pub fn update(model: Model, msg: Msg) -> Model {
 // VIEW ------------------------------------------------------------------------
 
 pub fn view(model: Model) -> Element(Msg) {
-  let styles = [#("width", "100vw"), #("height", "100vh"), #("padding", "1rem")]
-  let button_styles = [#("width", "100%"), #("margin-top", "1em")]
+  let main_styles = [
+    #("width", "100vw"),
+    #("height", "100vh"),
+    #("padding", "1rem"),
+  ]
   let score = model.correct |> list.length() |> int.to_string()
 
   case model.game_over {
-    False ->
-      ui.centre(
-        [attribute.style(styles)],
-        html.div([], [
-          ui.field(
-            [],
-            [element.text(current_country(model.countries_remaining).0)],
-            ui.input([
-              attribute.value(model.current_guess),
-              event.on_input(UserUpdatedGuess),
-              event.on_keypress(UserKeyPress),
-            ]),
-            [],
-          ),
-          ui.button([event.on_click(Validate), attribute.style(button_styles)], [
-            element.text("Guess"),
-          ]),
-        ]),
-      )
+    False -> ui.centre([attribute.style(main_styles)], quiz_input(model))
     True ->
       ui.centre(
-        [attribute.style(styles)],
+        [attribute.style(main_styles)],
         html.div([], [
           html.h1([], [element.text("game over! score: " <> score)]),
           ..missed_table(model)
         ]),
       )
   }
+}
+
+fn quiz_input(model: Model) -> Element(Msg) {
+  let button_style = [#("width", "100%"), #("margin-top", "1em")]
+
+  html.div([], [
+    ui.field(
+      [],
+      [element.text(current_country(model.countries_remaining).0)],
+      ui.input([
+        attribute.value(model.current_guess),
+        event.on_input(UserUpdatedGuess),
+        event.on_keypress(UserKeyPress),
+      ]),
+      [],
+    ),
+    ui.button([event.on_click(Validate), attribute.style(button_style)], [
+      element.text("Guess"),
+    ]),
+  ])
 }
 
 fn missed_table(model: Model) -> List(Element(Msg)) {
