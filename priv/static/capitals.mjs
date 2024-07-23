@@ -2427,12 +2427,11 @@ function get_countries() {
 
 // build/dev/javascript/capitals/capitals.mjs
 var Model = class extends CustomType {
-  constructor(score, correct, incorrect, current_country, current_guess, countries_remaining, game_over) {
+  constructor(score, correct, incorrect, current_guess, countries_remaining, game_over) {
     super();
     this.score = score;
     this.correct = correct;
     this.incorrect = incorrect;
-    this.current_country = current_country;
     this.current_guess = current_guess;
     this.countries_remaining = countries_remaining;
     this.game_over = game_over;
@@ -2447,26 +2446,30 @@ var UserUpdatedGuess = class extends CustomType {
   }
 };
 function init2(_) {
-  return new Model(
-    0,
-    toList([]),
-    toList([]),
-    ["", ""],
-    "",
-    get_countries(),
-    false
-  );
+  return new Model(0, toList([]), toList([]), "", get_countries(), false);
 }
-function next_country(countries_remaining) {
-  let next = (() => {
+function current_country(countries_remaining) {
+  let this$ = (() => {
     let _pipe = countries_remaining;
     return first(_pipe);
   })();
-  if (next.isOk()) {
-    let next$1 = next[0];
-    return next$1;
+  if (this$.isOk()) {
+    let this$1 = this$[0];
+    return this$1;
   } else {
     return ["", ""];
+  }
+}
+function has_next_country(countries_remaining) {
+  let next = (() => {
+    let _pipe = countries_remaining;
+    let _pipe$1 = drop(_pipe, 1);
+    return first(_pipe$1);
+  })();
+  if (next.isOk()) {
+    return true;
+  } else {
+    return false;
   }
 }
 function validate_country(model) {
@@ -2474,30 +2477,29 @@ function validate_country(model) {
     let _pipe = model.current_guess;
     return lowercase2(_pipe);
   })();
-  let guess_was_correct = capital_guess === model.current_country[1];
-  let next_country$1 = next_country(model.countries_remaining);
-  let is_game_over = isEqual(next_country$1, ["", ""]);
+  let current_country$1 = current_country(model.countries_remaining);
+  let guess_was_correct = capital_guess === current_country$1[1];
+  let is_game_over = has_next_country(model.countries_remaining) === false;
   let updated_model = model.withFields({
-    current_country: next_country$1,
     current_guess: "",
     game_over: is_game_over
   });
   if (guess_was_correct && is_game_over) {
     return updated_model.withFields({
       score: model.score + 1,
-      correct: append(model.correct, toList([model.current_country])),
+      correct: append(model.correct, toList([current_country$1])),
       countries_remaining: toList([])
     });
   } else if (!guess_was_correct && is_game_over) {
     return updated_model.withFields({
-      incorrect: append(model.incorrect, toList([model.current_country])),
+      incorrect: append(model.incorrect, toList([current_country$1])),
       countries_remaining: toList([]),
       game_over: true
     });
   } else if (guess_was_correct && !is_game_over) {
     return updated_model.withFields({
       score: model.score + 1,
-      correct: append(model.correct, toList([model.current_country])),
+      correct: append(model.correct, toList([current_country$1])),
       countries_remaining: (() => {
         let _pipe = model.countries_remaining;
         return drop(_pipe, 1);
@@ -2505,7 +2507,7 @@ function validate_country(model) {
     });
   } else {
     return updated_model.withFields({
-      incorrect: append(model.incorrect, toList([model.current_country])),
+      incorrect: append(model.incorrect, toList([current_country$1])),
       countries_remaining: (() => {
         let _pipe = model.countries_remaining;
         return drop(_pipe, 1);
@@ -2535,7 +2537,11 @@ function view(model) {
         toList([
           field3(
             toList([]),
-            toList([text("Country: " + model.current_country[0])]),
+            toList([
+              text(
+                "Country: " + current_country(model.countries_remaining)[0]
+              )
+            ]),
             input3(
               toList([
                 value(model.current_guess),
@@ -2578,7 +2584,7 @@ function main() {
     throw makeError(
       "assignment_no_match",
       "capitals",
-      151,
+      159,
       "main",
       "Assignment pattern did not match",
       { value: $ }

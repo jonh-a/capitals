@@ -18,7 +18,6 @@ pub type Model {
     score: Int,
     correct: List(#(String, String)),
     incorrect: List(#(String, String)),
-    current_country: #(String, String),
     current_guess: String,
     countries_remaining: List(#(String, String)),
     game_over: Bool,
@@ -30,7 +29,6 @@ fn init(_flags) -> Model {
     score: 0,
     correct: [],
     incorrect: [],
-    current_country: #("", ""),
     current_guess: "",
     countries_remaining: get_countries(),
     game_over: False,
@@ -44,45 +42,51 @@ pub type Msg {
   UserUpdatedGuess(value: String)
 }
 
-fn next_country(
+fn current_country(
   countries_remaining: List(#(String, String)),
 ) -> #(String, String) {
-  let next =
+  let this =
     countries_remaining
     |> list.first()
 
-  case next {
-    Ok(next) -> next
+  case this {
+    Ok(this) -> this
     Error(_) -> #("", "")
+  }
+}
+
+fn has_next_country(countries_remaining: List(#(String, String))) -> Bool {
+  let next =
+    countries_remaining
+    |> list.drop(1)
+    |> list.first()
+
+  case next {
+    Ok(_) -> True
+    Error(_) -> False
   }
 }
 
 fn validate_country(model: Model) -> Model {
   let capital_guess = model.current_guess |> string.lowercase()
-  let guess_was_correct = capital_guess == model.current_country.1
-  let next_country = next_country(model.countries_remaining)
-  let is_game_over = next_country == #("", "")
+  let current_country = current_country(model.countries_remaining)
+  let guess_was_correct = capital_guess == current_country.1
+  let is_game_over = has_next_country(model.countries_remaining) == False
 
-  let updated_model =
-    Model(
-      ..model,
-      current_country: next_country,
-      current_guess: "",
-      game_over: is_game_over,
-    )
+  let updated_model = Model(..model, current_guess: "", game_over: is_game_over)
 
   case guess_was_correct, is_game_over {
     True, True ->
       Model(
         ..updated_model,
         score: model.score + 1,
-        correct: list.append(model.correct, [model.current_country]),
+        correct: list.append(model.correct, [current_country]),
         countries_remaining: [],
       )
     False, True ->
       Model(
         ..updated_model,
-        incorrect: list.append(model.incorrect, [model.current_country]),
+        incorrect: list.append(model.incorrect, [current_country]),
         countries_remaining: [],
         game_over: True,
       )
@@ -90,14 +94,14 @@ fn validate_country(model: Model) -> Model {
       Model(
         ..updated_model,
         score: model.score + 1,
-        correct: list.append(model.correct, [model.current_country]),
+        correct: list.append(model.correct, [current_country]),
         countries_remaining: model.countries_remaining
           |> list.drop(1),
       )
     False, False ->
       Model(
         ..updated_model,
-        incorrect: list.append(model.incorrect, [model.current_country]),
+        incorrect: list.append(model.incorrect, [current_country]),
         countries_remaining: model.countries_remaining
           |> list.drop(1),
       )
@@ -122,7 +126,11 @@ pub fn view(model: Model) -> element.Element(Msg) {
       element.fragment([
         ui.field(
           [],
-          [element.text("Country: " <> model.current_country.0)],
+          [
+            element.text(
+              "Country: " <> current_country(model.countries_remaining).0,
+            ),
+          ],
           ui.input([
             attribute.value(model.current_guess),
             event.on_input(UserUpdatedGuess),
