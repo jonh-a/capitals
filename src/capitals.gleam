@@ -1,4 +1,5 @@
 import data.{get_countries}
+import gleam/bool
 import gleam/int
 import gleam/list
 import gleam/string
@@ -15,7 +16,7 @@ pub type Model {
   Model(
     score: Int,
     correct: List(#(String, String, String)),
-    incorrect: List(#(String, String, String)),
+    incorrect: List(#(String, String, String, String)),
     current_guess: String,
     countries_remaining: List(#(String, String, String)),
     game_over: Bool,
@@ -102,7 +103,14 @@ fn handle_button_click(model: Model) -> Model {
     False, True, False ->
       Model(
         ..updated_model,
-        incorrect: list.append(model.incorrect, [current_country]),
+        incorrect: list.append(model.incorrect, [
+          #(
+            current_country.0,
+            current_country.1,
+            current_country.2,
+            capital_guess,
+          ),
+        ]),
         paused: True,
       )
 
@@ -117,7 +125,14 @@ fn handle_button_click(model: Model) -> Model {
     False, False, False ->
       Model(
         ..updated_model,
-        incorrect: list.append(model.incorrect, [current_country]),
+        incorrect: list.append(model.incorrect, [
+          #(
+            current_country.0,
+            current_country.1,
+            current_country.2,
+            capital_guess,
+          ),
+        ]),
         paused: True,
       )
   }
@@ -171,7 +186,7 @@ fn quiz_input(model: Model) -> Element(Msg) {
   let button_style = [#("width", "100%"), #("margin-top", "1em")]
   let current_country = get_current_country(model.countries_remaining)
   let #(input_text, input_background, button_text) = case model.paused {
-    True -> #(current_country.1, "red", "resume (enter)")
+    True -> #(current_country.1, "rgb(250, 160, 160)", "resume (enter)")
     False -> #(model.current_guess, "none", "guess (enter)")
   }
 
@@ -181,16 +196,35 @@ fn quiz_input(model: Model) -> Element(Msg) {
       [element.text(current_country.0 <> " " <> current_country.2)],
       ui.input([
         attribute.value(input_text),
+        attribute.placeholder("guess the capital..."),
         event.on_input(UserUpdatedGuess),
         event.on_keypress(UserKeyPress),
         attribute.style([#("background-color", input_background)]),
       ]),
       [],
     ),
-    ui.button([event.on_click(Validate), attribute.style(button_style)], [
-      element.text(button_text),
-    ]),
+    ui.button(
+      [
+        event.on_click(Validate),
+        attribute.style(button_style),
+        attribute.disabled(bool.and(
+          string.length(model.current_guess) == 0,
+          !model.paused,
+        )),
+      ],
+      [element.text(button_text)],
+    ),
   ])
+}
+
+fn incorrect_guess_result(country: #(String, String, String, String)) -> String {
+  "❌ "
+  <> country.0
+  <> " - "
+  <> country.1
+  <> "... you guessed \""
+  <> country.3
+  <> "\""
 }
 
 fn missed_table(model: Model) -> List(Element(Msg)) {
@@ -202,10 +236,8 @@ fn missed_table(model: Model) -> List(Element(Msg)) {
       html.ul(
         [],
         model.incorrect
-          |> list.map(fn(country: #(String, String, String)) {
-            html.li([], [
-              element.text("❌ " <> country.0 <> " - " <> country.1),
-            ])
+          |> list.map(fn(country: #(String, String, String, String)) {
+            html.li([], [element.text(incorrect_guess_result(country))])
           }),
       ),
     ]
