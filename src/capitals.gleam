@@ -19,6 +19,7 @@ pub type Model {
     current_guess: String,
     countries_remaining: List(#(String, String)),
     game_over: Bool,
+    paused: Bool,
   )
 }
 
@@ -30,6 +31,7 @@ fn init(_flags) -> Model {
     current_guess: "",
     countries_remaining: get_countries(),
     game_over: False,
+    paused: False,
   )
 }
 
@@ -41,7 +43,8 @@ pub type Msg {
   UserKeyPress(key: String)
 }
 
-fn current_country(
+// fetch first country from countries_remaining list
+fn get_current_country(
   countries_remaining: List(#(String, String)),
 ) -> #(String, String) {
   let this =
@@ -54,6 +57,7 @@ fn current_country(
   }
 }
 
+// check to see if the current country is the last country in the list
 fn has_next_country(countries_remaining: List(#(String, String))) -> Bool {
   let next =
     countries_remaining
@@ -66,58 +70,74 @@ fn has_next_country(countries_remaining: List(#(String, String))) -> Bool {
   }
 }
 
-fn validate_country(model: Model) -> Model {
+/// resume game if paused or compare guess against correct capital
+fn handle_button_click(model: Model) -> Model {
   let capital_guess = model.current_guess |> string.lowercase()
-  let current_country = current_country(model.countries_remaining)
+  let current_country = get_current_country(model.countries_remaining)
   let guess_was_correct = capital_guess == current_country.1
   let is_game_over = has_next_country(model.countries_remaining) == False
 
   let updated_model = Model(..model, current_guess: "", game_over: is_game_over)
 
-  case guess_was_correct, is_game_over {
-    True, True ->
-      Model(
-        ..updated_model,
-        score: model.score + 1,
-        correct: list.append(model.correct, [current_country]),
-        countries_remaining: [],
-      )
-    False, True ->
-      Model(
-        ..updated_model,
-        incorrect: list.append(model.incorrect, [current_country]),
-        countries_remaining: [],
-        game_over: True,
-      )
+  case model.paused, is_game_over {
     True, False ->
       Model(
-        ..updated_model,
-        score: model.score + 1,
-        correct: list.append(model.correct, [current_country]),
+        ..model,
         countries_remaining: model.countries_remaining
           |> list.drop(1),
+        paused: False,
       )
-    False, False ->
-      Model(
-        ..updated_model,
-        incorrect: list.append(model.incorrect, [current_country]),
-        countries_remaining: model.countries_remaining
-          |> list.drop(1),
-      )
+    True, True -> Model(..model, paused: False)
+    False, _ ->
+      case guess_was_correct, is_game_over {
+        True, True ->
+          Model(
+            ..updated_model,
+            score: model.score + 1,
+            correct: list.append(model.correct, [current_country]),
+            countries_remaining: [],
+          )
+        False, True ->
+          Model(
+            ..updated_model,
+            incorrect: list.append(model.incorrect, [current_country]),
+            countries_remaining: [],
+            game_over: True,
+            paused: True,
+          )
+        True, False ->
+          Model(
+            ..updated_model,
+            score: model.score + 1,
+            correct: list.append(model.correct, [current_country]),
+            countries_remaining: model.countries_remaining
+              |> list.drop(1),
+          )
+        False, False ->
+          Model(
+            ..updated_model,
+            incorrect: list.append(model.incorrect, [current_country]),
+            paused: True,
+          )
+      }
   }
 }
 
+/// if game is paused, allow enter w/ empty input to proceed
+/// to handle_button_click function. otherwise, ignore enter
+/// attempts with no input
 fn handle_key_press(key: String, model: Model) -> Model {
-  case key, model.current_guess |> string.length {
-    _, 0 -> model
-    "Enter", _ -> validate_country(model)
-    _, _ -> model
+  case key, model.current_guess |> string.length, model.paused {
+    "Enter", 0, False -> model
+    "Enter", _, _ -> handle_button_click(model)
+    _, 0, False -> model
+    _, _, _ -> model
   }
 }
 
 pub fn update(model: Model, msg: Msg) -> Model {
   case msg {
-    Validate -> validate_country(model)
+    Validate -> handle_button_click(model)
     UserUpdatedGuess(value) ->
       Model(..model, current_guess: value |> string.lowercase())
     UserKeyPress(key) -> handle_key_press(key, model)
@@ -134,9 +154,8 @@ pub fn view(model: Model) -> Element(Msg) {
   ]
   let score = model.correct |> list.length() |> int.to_string()
 
-  case model.game_over {
-    False -> ui.centre([attribute.style(main_styles)], quiz_input(model))
-    True ->
+  case model.game_over, model.paused {
+    True, _ ->
       ui.centre(
         [attribute.style(main_styles)],
         html.div([], [
@@ -144,25 +163,32 @@ pub fn view(model: Model) -> Element(Msg) {
           ..missed_table(model)
         ]),
       )
+    _, _ -> ui.centre([attribute.style(main_styles)], quiz_input(model))
   }
 }
 
 fn quiz_input(model: Model) -> Element(Msg) {
   let button_style = [#("width", "100%"), #("margin-top", "1em")]
+  let current_country = get_current_country(model.countries_remaining)
+  let #(input_text, input_background, button_text) = case model.paused {
+    True -> #(current_country.1, "red", "resume (enter)")
+    False -> #(model.current_guess, "none", "guess (enter)")
+  }
 
   html.div([], [
     ui.field(
       [],
-      [element.text(current_country(model.countries_remaining).0)],
+      [element.text(current_country.0)],
       ui.input([
-        attribute.value(model.current_guess),
+        attribute.value(input_text),
         event.on_input(UserUpdatedGuess),
         event.on_keypress(UserKeyPress),
+        attribute.style([#("background-color", input_background)]),
       ]),
       [],
     ),
     ui.button([event.on_click(Validate), attribute.style(button_style)], [
-      element.text("Guess"),
+      element.text(button_text),
     ]),
   ])
 }
@@ -171,14 +197,14 @@ fn missed_table(model: Model) -> List(Element(Msg)) {
   case list.length(model.incorrect) {
     0 -> [html.h1([], [element.text("you didn't miss any!")])]
     _ -> [
+      html.br([]),
       html.h1([], [element.text("you got these wrong: ")]),
-      html.table(
+      html.ul(
         [],
         model.incorrect
           |> list.map(fn(country: #(String, String)) {
-            html.tr([], [
-              html.td([], [element.text(country.0)]),
-              html.td([], [element.text(country.1)]),
+            html.li([], [
+              element.text("❌ " <> country.0 <> " - " <> country.1),
             ])
           }),
       ),
