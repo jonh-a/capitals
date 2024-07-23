@@ -15,9 +15,12 @@ import lustre/ui
 pub type Model {
   Model(
     score: Int,
+    // #(name, capital, flag)
     correct: List(#(String, String, String)),
+    // #(name, capital, flag, guess)
     incorrect: List(#(String, String, String, String)),
     current_guess: String,
+    // #(name, capital, flag)
     countries_remaining: List(#(String, String, String)),
     game_over: Bool,
     paused: Bool,
@@ -213,6 +216,22 @@ fn quiz_input(model: Model) -> Element(Msg) {
         )),
       ],
       [element.text(button_text)],
+    ),
+    ui.centre(
+      [],
+      html.div([attribute.style([#("padding", "1em")])], [
+        html.span([attribute.style([#("margin", "1em"), #("color", "green")])], [
+          model.score
+          |> int.to_string()
+          |> element.text(),
+        ]),
+        html.span([attribute.style([#("margin", "1em"), #("color", "red")])], [
+          model.incorrect
+          |> list.length()
+          |> int.to_string()
+          |> element.text(),
+        ]),
+      ]),
     ),
   ])
 }
