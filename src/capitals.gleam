@@ -236,14 +236,18 @@ fn quiz_input(model: Model) -> Element(Msg) {
   ])
 }
 
-fn incorrect_guess_result(country: #(String, String, String, String)) -> String {
-  "❌ "
-  <> country.0
-  <> " - "
-  <> country.1
-  <> "... you guessed \""
-  <> country.3
-  <> "\""
+fn incorrect_guess_result(
+  country: #(String, String, String, String),
+) -> List(Element(a)) {
+  [
+    html.span([], [
+      element.text(
+        "❌ " <> country.0 <> " - " <> country.1 <> "... you guessed \"",
+      ),
+    ]),
+    html.span([attribute.style([#("color", "red")])], [element.text(country.3)]),
+    html.span([], [element.text("\"")]),
+  ]
 }
 
 fn missed_table(model: Model) -> List(Element(Msg)) {
@@ -256,7 +260,7 @@ fn missed_table(model: Model) -> List(Element(Msg)) {
         [],
         model.incorrect
           |> list.map(fn(country: #(String, String, String, String)) {
-            html.li([], [element.text(incorrect_guess_result(country))])
+            html.li([], incorrect_guess_result(country))
           }),
       ),
     ]
