@@ -30,6 +30,6 @@ pub fn get_countries() -> List(#(String, String, String)) {
     #("united states", "washington, dc", "🇺🇸"),
     #("venezuela", "caracas", "🇻🇪"),
   ]
-  |> list.take(50)
+  |> list.take(10)
   |> list.shuffle()
 }

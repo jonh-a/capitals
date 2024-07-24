@@ -77,26 +77,26 @@ fn has_next_country(
 }
 
 fn convert_accents(guess: String) -> String {
-  let converted_chars =
-    guess
-    |> string.to_graphemes()
-    |> list.reduce(fn(acc, char) {
-      case char {
-        "á" | "à" | "â" | "å" | "ã" -> acc <> "a"
-        "æ" -> acc <> "ae"
-        "č" -> acc <> "c"
-        "é" | "ë" -> acc <> "e"
-        "í" -> acc <> "i"
-        "ó" | "ø" | "ö" -> acc <> "o"
-        "ș" -> acc <> "s"
-        "ž" -> acc <> "z"
-        _ -> acc <> char
-      }
-    })
-
-  case converted_chars {
-    Ok(chars) -> chars
-    Error(_) -> ""
+  guess
+  |> string.to_graphemes()
+  |> list.reduce(fn(acc, char) {
+    case char {
+      "á" | "à" | "â" | "å" | "ã" -> acc <> "a"
+      "æ" -> acc <> "ae"
+      "č" -> acc <> "c"
+      "é" | "ë" -> acc <> "e"
+      "í" -> acc <> "i"
+      "ó" | "ø" | "ö" -> acc <> "o"
+      "ș" -> acc <> "s"
+      "ž" -> acc <> "z"
+      _ -> acc <> char
+    }
+  })
+  |> fn(x) {
+    case x {
+      Ok(chars) -> chars
+      Error(_) -> ""
+    }
   }
 }
 
@@ -224,7 +224,7 @@ fn quiz_input(model: Model) -> Element(Msg) {
         element.text(
           list.length(model.correct) + list.length(model.incorrect) + 1
           |> int.to_string()
-          <> "/50",
+          <> "/10",
         ),
       ]),
     ),
