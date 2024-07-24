@@ -14,7 +14,6 @@ import lustre/ui
 
 pub type Model {
   Model(
-    score: Int,
     // #(name, capital, flag)
     correct: List(#(String, String, String)),
     // #(name, capital, flag, guess)
@@ -31,7 +30,6 @@ pub type Model {
 
 fn init(_flags) -> Model {
   Model(
-    score: 0,
     correct: [],
     incorrect: [],
     current_guess: "",
@@ -136,7 +134,6 @@ fn handle_button_click(model: Model) -> Model {
     False, True, True ->
       Model(
         ..updated_model,
-        score: model.score + 1,
         correct: list.append(model.correct, [current_country]),
         countries_remaining: [],
         hints: 0,
@@ -159,7 +156,6 @@ fn handle_button_click(model: Model) -> Model {
     False, False, True ->
       Model(
         ..updated_model,
-        score: model.score + 1,
         correct: list.append(model.correct, [current_country]),
         countries_remaining: model.countries_remaining |> list.drop(1),
         hints: 0,
@@ -238,17 +234,6 @@ pub fn view(model: Model) -> Element(Msg) {
   }
 }
 
-fn game_over_screen(model: Model) -> Element(Msg) {
-  let score = model.correct |> list.length() |> int.to_string()
-  let hints_used = model.total_hints_used |> int.to_string()
-
-  html.div([], [
-    html.h1([], [element.text("score: " <> score)]),
-    html.h1([], [element.text("hints used: " <> hints_used)]),
-    ..missed_table(model)
-  ])
-}
-
 fn quiz_input(model: Model) -> Element(Msg) {
   let guess_button_style = [#("width", "100%"), #("margin-top", "1em")]
   let hint_button_style = [#("width", "100%"), #("margin-top", ".2em")]
@@ -308,7 +293,8 @@ fn quiz_input(model: Model) -> Element(Msg) {
       [],
       html.div([attribute.style([#("padding", "1em")])], [
         html.span([attribute.style([#("margin", "1em"), #("color", "green")])], [
-          model.score
+          model.correct
+          |> list.length()
           |> int.to_string()
           |> element.text(),
         ]),
@@ -320,6 +306,18 @@ fn quiz_input(model: Model) -> Element(Msg) {
         ]),
       ]),
     ),
+  ])
+}
+
+fn game_over_screen(model: Model) -> Element(Msg) {
+  let correct = model.correct |> list.length() |> int.to_string()
+  let incorrect = model.incorrect |> list.length() |> int.to_string()
+  let hints_used = model.total_hints_used |> int.to_string()
+
+  html.div([], [
+    html.h1([], [element.text("right: " <> correct <> ", wrong: " <> incorrect)]),
+    html.h1([], [element.text("hints used: " <> hints_used)]),
+    ..missed_table(model)
   ])
 }
 
