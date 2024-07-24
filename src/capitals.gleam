@@ -24,6 +24,7 @@ pub type Model {
     countries_remaining: List(#(String, String, String)),
     game_over: Bool,
     paused: Bool,
+    hints: Int,
   )
 }
 
@@ -36,6 +37,7 @@ fn init(_flags) -> Model {
     countries_remaining: get_countries(),
     game_over: False,
     paused: False,
+    hints: 0,
   )
 }
 
@@ -45,6 +47,7 @@ pub type Msg {
   Validate
   UserUpdatedGuess(value: String)
   UserKeyPress(key: String)
+  Hint
 }
 
 // fetch first country from countries_remaining list
@@ -100,9 +103,17 @@ fn convert_accents(guess: String) -> String {
   }
 }
 
+fn normalize_guess(guess) -> String {
+  guess
+  |> string.lowercase()
+  |> string.to_graphemes()
+  |> list.filter(fn(char) { char != "]" })
+  |> string.join("")
+}
+
 /// resume game if paused or compare guess against correct capital
 fn handle_button_click(model: Model) -> Model {
-  let capital_guess = model.current_guess |> string.lowercase()
+  let capital_guess = model.current_guess |> normalize_guess()
   let current_country = get_current_country(model.countries_remaining)
   let guess_was_correct = convert_accents(capital_guess) == current_country.1
   let is_game_over = has_next_country(model.countries_remaining) == False
@@ -165,6 +176,22 @@ fn handle_button_click(model: Model) -> Model {
   }
 }
 
+fn get_hint(capital: String, hints: Int) -> String {
+  capital
+  |> string.to_graphemes()
+  |> list.take(hints + 1)
+  |> string.join("")
+}
+
+fn provide_hint(model: Model) -> Model {
+  Model(
+    ..model,
+    hints: model.hints + 1,
+    current_guess: get_current_country(model.countries_remaining).1
+      |> get_hint(model.hints),
+  )
+}
+
 /// if game is paused, allow enter w/ empty input to proceed
 /// to handle_button_click function. otherwise, ignore enter
 /// attempts with no input
@@ -172,6 +199,7 @@ fn handle_key_press(key: String, model: Model) -> Model {
   case key, model.current_guess |> string.length, model.paused {
     "Enter", 0, False -> model
     "Enter", _, _ -> handle_button_click(model)
+    "]", _, _ -> provide_hint(model)
     _, 0, False -> model
     _, _, _ -> model
   }
@@ -181,8 +209,9 @@ pub fn update(model: Model, msg: Msg) -> Model {
   case msg {
     Validate -> handle_button_click(model)
     UserUpdatedGuess(value) ->
-      Model(..model, current_guess: value |> string.lowercase())
+      Model(..model, current_guess: value |> normalize_guess())
     UserKeyPress(key) -> handle_key_press(key, model)
+    Hint -> provide_hint(model)
   }
 }
 
@@ -212,6 +241,10 @@ pub fn view(model: Model) -> Element(Msg) {
 fn quiz_input(model: Model) -> Element(Msg) {
   let button_style = [#("width", "100%"), #("margin-top", "1em")]
   let current_country = get_current_country(model.countries_remaining)
+  let hint_button_text = case model.hints {
+    0 | 1 -> "hint (])"
+    2 | _ -> "no more hints"
+  }
   let #(input_text, input_background, button_text) = case model.paused {
     True -> #(current_country.1, "rgb(250, 160, 160)", "resume (enter)")
     False -> #(model.current_guess, "none", "guess (enter)")
@@ -250,6 +283,17 @@ fn quiz_input(model: Model) -> Element(Msg) {
         )),
       ],
       [element.text(button_text)],
+    ),
+    ui.button(
+      [
+        event.on_click(Hint),
+        attribute.style(button_style),
+        attribute.disabled(bool.or(
+          string.length(model.current_guess) != 0,
+          model.paused,
+        )),
+      ],
+      [element.text(hint_button_text)],
     ),
     ui.centre(
       [],
