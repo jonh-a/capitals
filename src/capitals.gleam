@@ -244,7 +244,7 @@ fn quiz_input(model: Model) -> Element(Msg) {
     False -> #(model.current_guess, "none", "guess (enter)")
   }
 
-  html.div([attribute.style([#("min-width", "75%"), #("max-width", "90%")])], [
+  html.div([attribute.style([#("min-width", "50%"), #("max-width", "90%")])], [
     ui.centre(
       [attribute.style([#("margin-bottom", "1em")])],
       html.h1([], [
