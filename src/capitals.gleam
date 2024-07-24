@@ -237,14 +237,14 @@ fn quiz_input(model: Model) -> Element(Msg) {
   let current_country = get_current_country(model.countries_remaining)
   let hint_button_text = case model.hints {
     0 | 1 -> "hint (])"
-    2 | _ -> "no more hints"
+    2 | _ -> "no more"
   }
   let #(input_text, input_background, button_text) = case model.paused {
-    True -> #(current_country.1, "rgb(250, 160, 160)", "resume (enter)")
+    True -> #(current_country.1, "rgb(250, 160, 160)", "resume")
     False -> #(model.current_guess, "none", "guess (enter)")
   }
 
-  html.div([attribute.style([#("min-width", "50%"), #("max-width", "90%")])], [
+  html.div([attribute.style([#("min-width", "40%"), #("max-width", "90%")])], [
     ui.centre(
       [attribute.style([#("margin-bottom", "1em")])],
       html.h1([], [
