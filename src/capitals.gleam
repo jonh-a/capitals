@@ -25,6 +25,7 @@ pub type Model {
     game_over: Bool,
     paused: Bool,
     hints: Int,
+    total_hints_used: Int,
   )
 }
 
@@ -38,6 +39,7 @@ fn init(_flags) -> Model {
     game_over: False,
     paused: False,
     hints: 0,
+    total_hints_used: 0,
   )
 }
 
@@ -126,6 +128,7 @@ fn handle_button_click(model: Model) -> Model {
         ..model,
         countries_remaining: model.countries_remaining |> list.drop(1),
         paused: False,
+        hints: 0,
       )
 
     True, True, _ -> Model(..model, paused: False)
@@ -136,6 +139,7 @@ fn handle_button_click(model: Model) -> Model {
         score: model.score + 1,
         correct: list.append(model.correct, [current_country]),
         countries_remaining: [],
+        hints: 0,
       )
 
     False, True, False ->
@@ -158,6 +162,7 @@ fn handle_button_click(model: Model) -> Model {
         score: model.score + 1,
         correct: list.append(model.correct, [current_country]),
         countries_remaining: model.countries_remaining |> list.drop(1),
+        hints: 0,
       )
 
     False, False, False ->
@@ -176,20 +181,21 @@ fn handle_button_click(model: Model) -> Model {
   }
 }
 
-fn get_hint(capital: String, hints: Int) -> String {
-  capital
-  |> string.to_graphemes()
-  |> list.take(hints + 1)
-  |> string.join("")
-}
-
+/// allow a max of 2 hints
 fn provide_hint(model: Model) -> Model {
-  Model(
-    ..model,
-    hints: model.hints + 1,
-    current_guess: get_current_country(model.countries_remaining).1
-      |> get_hint(model.hints),
-  )
+  case model.hints {
+    0 | 1 ->
+      Model(
+        ..model,
+        hints: model.hints + 1,
+        current_guess: get_current_country(model.countries_remaining).1
+          |> string.to_graphemes()
+          |> list.take(model.hints + 1)
+          |> string.join(""),
+        total_hints_used: model.total_hints_used + 1,
+      )
+    2 | _ -> model
+  }
 }
 
 /// if game is paused, allow enter w/ empty input to proceed
@@ -223,23 +229,29 @@ pub fn view(model: Model) -> Element(Msg) {
     #("height", "100vh"),
     #("padding", "1rem"),
   ]
-  let score = model.correct |> list.length() |> int.to_string()
 
   case model.game_over, model.paused {
     True, _ ->
-      ui.centre(
-        [attribute.style(main_styles)],
-        html.div([], [
-          html.h1([], [element.text("game over! score: " <> score)]),
-          ..missed_table(model)
-        ]),
-      )
+      ui.centre([attribute.style(main_styles)], game_over_screen(model))
+
     _, _ -> ui.centre([attribute.style(main_styles)], quiz_input(model))
   }
 }
 
+fn game_over_screen(model: Model) -> Element(Msg) {
+  let score = model.correct |> list.length() |> int.to_string()
+  let hints_used = model.total_hints_used |> int.to_string()
+
+  html.div([], [
+    html.h1([], [element.text("score: " <> score)]),
+    html.h1([], [element.text("hints used: " <> hints_used)]),
+    ..missed_table(model)
+  ])
+}
+
 fn quiz_input(model: Model) -> Element(Msg) {
-  let button_style = [#("width", "100%"), #("margin-top", "1em")]
+  let guess_button_style = [#("width", "100%"), #("margin-top", "1em")]
+  let hint_button_style = [#("width", "100%"), #("margin-top", ".2em")]
   let current_country = get_current_country(model.countries_remaining)
   let hint_button_text = case model.hints {
     0 | 1 -> "hint (])"
@@ -276,7 +288,7 @@ fn quiz_input(model: Model) -> Element(Msg) {
     ui.button(
       [
         event.on_click(Validate),
-        attribute.style(button_style),
+        attribute.style(guess_button_style),
         attribute.disabled(bool.and(
           string.length(model.current_guess) == 0,
           !model.paused,
@@ -287,11 +299,8 @@ fn quiz_input(model: Model) -> Element(Msg) {
     ui.button(
       [
         event.on_click(Hint),
-        attribute.style(button_style),
-        attribute.disabled(bool.or(
-          string.length(model.current_guess) != 0,
-          model.paused,
-        )),
+        attribute.style(hint_button_style),
+        attribute.disabled(model.paused),
       ],
       [element.text(hint_button_text)],
     ),
