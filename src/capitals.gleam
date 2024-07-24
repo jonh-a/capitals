@@ -76,11 +76,35 @@ fn has_next_country(
   }
 }
 
+fn convert_accents(guess: String) -> String {
+  let converted_chars =
+    guess
+    |> string.to_graphemes()
+    |> list.reduce(fn(acc, char) {
+      case char {
+        "á" | "à" | "â" | "å" | "ã" -> acc <> "a"
+        "æ" -> acc <> "ae"
+        "č" -> acc <> "c"
+        "é" | "ë" -> acc <> "e"
+        "í" -> acc <> "i"
+        "ó" | "ø" | "ö" -> acc <> "o"
+        "ș" -> acc <> "s"
+        "ž" -> acc <> "z"
+        _ -> acc <> char
+      }
+    })
+
+  case converted_chars {
+    Ok(chars) -> chars
+    Error(_) -> ""
+  }
+}
+
 /// resume game if paused or compare guess against correct capital
 fn handle_button_click(model: Model) -> Model {
   let capital_guess = model.current_guess |> string.lowercase()
   let current_country = get_current_country(model.countries_remaining)
-  let guess_was_correct = capital_guess == current_country.1
+  let guess_was_correct = convert_accents(capital_guess) == current_country.1
   let is_game_over = has_next_country(model.countries_remaining) == False
 
   let updated_model = Model(..model, current_guess: "", game_over: is_game_over)
@@ -194,6 +218,16 @@ fn quiz_input(model: Model) -> Element(Msg) {
   }
 
   html.div([], [
+    ui.centre(
+      [attribute.style([#("margin-bottom", "1em")])],
+      html.h1([], [
+        element.text(
+          list.length(model.correct) + list.length(model.incorrect) + 1
+          |> int.to_string()
+          <> "/50",
+        ),
+      ]),
+    ),
     ui.field(
       [],
       [element.text(current_country.0 <> " " <> current_country.2)],
