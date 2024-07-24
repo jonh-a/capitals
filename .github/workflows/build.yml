@@ -30,7 +30,7 @@ jobs:
         run: gleam deps download
       
       - name: build gleam app
-        run: ggleam run -m lustre/dev build app
+        run: gleam run -m lustre/dev build app
 
       - name: install node deps
         run: npm ci
