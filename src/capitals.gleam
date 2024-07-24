@@ -190,6 +190,7 @@ fn provide_hint(model: Model) -> Model {
           |> string.join(""),
         total_hints_used: model.total_hints_used + 1,
       )
+
     2 | _ -> model
   }
 }
@@ -220,11 +221,7 @@ pub fn update(model: Model, msg: Msg) -> Model {
 // VIEW ------------------------------------------------------------------------
 
 pub fn view(model: Model) -> Element(Msg) {
-  let main_styles = [
-    #("width", "100vw"),
-    #("height", "100vh"),
-    #("padding", "1rem"),
-  ]
+  let main_styles = [#("height", "100vh"), #("padding", "1rem")]
 
   case model.game_over, model.paused {
     True, _ ->
@@ -247,7 +244,7 @@ fn quiz_input(model: Model) -> Element(Msg) {
     False -> #(model.current_guess, "none", "guess (enter)")
   }
 
-  html.div([], [
+  html.div([attribute.style([#("min-width", "75%"), #("max-width", "90%")])], [
     ui.centre(
       [attribute.style([#("margin-bottom", "1em")])],
       html.h1([], [
