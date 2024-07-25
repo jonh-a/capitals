@@ -150,15 +150,7 @@ fn handle_button_click(model: Model) -> Model {
   let updated_model = Model(..model, current_guess: "", game_over: is_game_over)
 
   case model.paused, is_game_over, guess_response {
-    PausedForWrongAnswer, False, _ ->
-      Model(
-        ..model,
-        countries_remaining: model.countries_remaining |> list.drop(1),
-        paused: NotPaused,
-        hints: 0,
-      )
-
-    PausedForWrongSpelling, False, _ ->
+    PausedForWrongAnswer, False, _ | PausedForWrongSpelling, False, _ ->
       Model(
         ..model,
         countries_remaining: model.countries_remaining |> list.drop(1),
