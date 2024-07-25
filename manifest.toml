@@ -42,7 +42,7 @@ packages = [
 ]
 
 [requirements]
-edit_distance = { version = ">= 2.0.1 and < 3.0.0"}
+edit_distance = { version = ">= 2.0.1 and < 3.0.0" }
 gleam_stdlib = { version = ">= 0.34.0 and < 2.0.0" }
 gleeunit = { version = ">= 1.0.0 and < 2.0.0" }
 lustre = { version = ">= 4.3.1 and < 5.0.0" }

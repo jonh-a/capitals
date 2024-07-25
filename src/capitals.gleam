@@ -1,4 +1,4 @@
-import data.{get_countries}
+import data.{type PopulationFilter, get_countries}
 import edit_distance/levenshtein
 import gleam/bool
 import gleam/int
@@ -27,6 +27,7 @@ type Model {
     paused: PausedType,
     hints: Int,
     total_hints_used: Int,
+    population_filter: PopulationFilter,
   )
 }
 
@@ -42,11 +43,12 @@ fn init(_flags) -> Model {
     misspelled: [],
     incorrect: [],
     current_guess: "",
-    countries_remaining: get_countries(),
+    countries_remaining: get_countries(data.HundredMillion),
     game_over: False,
     paused: NotPaused,
     hints: 0,
     total_hints_used: 0,
+    population_filter: data.HundredMillion,
   )
 }
 
@@ -405,7 +407,7 @@ fn game_over_screen(model: Model) -> Element(Msg) {
         attribute.style([#("width", "100%"), #("margin-top", "1em")]),
         event.on_click(Replay),
       ],
-      [element.text("replay (enter)")],
+      [element.text("replay")],
     ),
   ])
 }
