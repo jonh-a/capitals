@@ -17,6 +17,7 @@ type Model {
   Model(
     // #(name, capital, flag)
     correct: List(#(String, String, String)),
+    misspelled: List(#(String, String, String)),
     // #(name, capital, flag, guess)
     incorrect: List(#(String, String, String, String)),
     current_guess: String,
@@ -30,14 +31,15 @@ type Model {
 }
 
 type PausedType {
-  WrongAnswer
-  WrongSpelling
+  PausedForWrongAnswer
+  PausedForWrongSpelling
   NotPaused
 }
 
 fn init(_flags) -> Model {
   Model(
     correct: [],
+    misspelled: [],
     incorrect: [],
     current_guess: "",
     countries_remaining: get_countries(),
@@ -141,15 +143,14 @@ fn check_if_accurate_enough(guess, capital) -> AccurateEnoughResponse {
 fn handle_button_click(model: Model) -> Model {
   let capital_guess = model.current_guess |> normalize_guess()
   let current_country = get_current_country(model.countries_remaining)
-  let guess_was_correct = convert_accents(capital_guess) == current_country.1
   let guess_response =
     check_if_accurate_enough(convert_accents(capital_guess), current_country.1)
   let is_game_over = has_next_country(model.countries_remaining) == False
 
   let updated_model = Model(..model, current_guess: "", game_over: is_game_over)
 
-  case #(model.paused, is_game_over, guess_response) {
-    #(WrongAnswer, False, _) ->
+  case model.paused, is_game_over, guess_response {
+    PausedForWrongAnswer, False, _ ->
       Model(
         ..model,
         countries_remaining: model.countries_remaining |> list.drop(1),
@@ -157,7 +158,7 @@ fn handle_button_click(model: Model) -> Model {
         hints: 0,
       )
 
-    #(WrongSpelling, False, _) ->
+    PausedForWrongSpelling, False, _ ->
       Model(
         ..model,
         countries_remaining: model.countries_remaining |> list.drop(1),
@@ -165,11 +166,10 @@ fn handle_button_click(model: Model) -> Model {
         hints: 0,
       )
 
-    #(WrongAnswer, True, _) -> Model(..model, paused: NotPaused)
+    PausedForWrongAnswer, True, _ | PausedForWrongSpelling, True, _ ->
+      Model(..model, paused: NotPaused)
 
-    #(WrongSpelling, True, _) -> Model(..model, paused: NotPaused)
-
-    #(NotPaused, True, Exact) ->
+    NotPaused, True, Exact ->
       Model(
         ..updated_model,
         correct: list.append(model.correct, [current_country]),
@@ -177,16 +177,16 @@ fn handle_button_click(model: Model) -> Model {
         hints: 0,
       )
 
-    #(NotPaused, True, Close) ->
+    NotPaused, True, Close ->
       Model(
         ..updated_model,
-        correct: list.append(model.correct, [current_country]),
+        misspelled: list.append(model.misspelled, [current_country]),
         countries_remaining: [],
         hints: 0,
-        paused: WrongSpelling,
+        paused: PausedForWrongSpelling,
       )
 
-    #(NotPaused, True, Nope) ->
+    NotPaused, True, Nope ->
       Model(
         ..updated_model,
         incorrect: list.append(model.incorrect, [
@@ -197,10 +197,10 @@ fn handle_button_click(model: Model) -> Model {
             capital_guess,
           ),
         ]),
-        paused: WrongAnswer,
+        paused: PausedForWrongAnswer,
       )
 
-    #(NotPaused, False, Exact) ->
+    NotPaused, False, Exact ->
       Model(
         ..updated_model,
         correct: list.append(model.correct, [current_country]),
@@ -208,16 +208,16 @@ fn handle_button_click(model: Model) -> Model {
         hints: 0,
       )
 
-    #(NotPaused, False, Close) ->
+    NotPaused, False, Close ->
       Model(
         ..updated_model,
-        correct: list.append(model.correct, [current_country]),
+        misspelled: list.append(model.misspelled, [current_country]),
         countries_remaining: model.countries_remaining,
         hints: 0,
-        paused: WrongSpelling,
+        paused: PausedForWrongSpelling,
       )
 
-    #(NotPaused, False, Nope) ->
+    NotPaused, False, Nope ->
       Model(
         ..updated_model,
         incorrect: list.append(model.incorrect, [
@@ -228,7 +228,7 @@ fn handle_button_click(model: Model) -> Model {
             capital_guess,
           ),
         ]),
-        paused: WrongAnswer,
+        paused: PausedForWrongAnswer,
       )
   }
 }
@@ -293,6 +293,9 @@ fn view(model: Model) -> Element(Msg) {
 }
 
 fn quiz_input(model: Model) -> Element(Msg) {
+  let g = "green"
+  let r = "red"
+  let y = "rgb(222, 201, 0)"
   let guess_button_style = [#("width", "100%"), #("margin-top", "1em")]
   let hint_button_style = [#("width", "100%"), #("margin-top", ".2em")]
   let current_country = get_current_country(model.countries_remaining)
@@ -301,8 +304,12 @@ fn quiz_input(model: Model) -> Element(Msg) {
     2 | _ -> "no more"
   }
   let #(input_text, input_background, button_text) = case model.paused {
-    WrongAnswer -> #(current_country.1, "rgb(250, 160, 160)", "resume")
-    WrongSpelling -> #(current_country.1, "rgb(255, 255, 102)", "resume")
+    PausedForWrongAnswer -> #(current_country.1, "rgb(250, 160, 160)", "resume")
+    PausedForWrongSpelling -> #(
+      current_country.1,
+      "rgb(255, 255, 102)",
+      "resume",
+    )
     NotPaused -> #(model.current_guess, "none", "guess (enter)")
   }
 
@@ -311,7 +318,10 @@ fn quiz_input(model: Model) -> Element(Msg) {
       [attribute.style([#("margin-bottom", "1em")])],
       html.h1([], [
         element.text(
-          list.length(model.correct) + list.length(model.incorrect) + 1
+          list.length(model.correct)
+          + list.length(model.misspelled)
+          + list.length(model.incorrect)
+          + 1
           |> int.to_string()
           <> "/15",
         ),
@@ -345,8 +355,8 @@ fn quiz_input(model: Model) -> Element(Msg) {
         event.on_click(Hint),
         attribute.style(hint_button_style),
         attribute.disabled(bool.or(
-          model.paused == WrongSpelling,
-          model.paused == WrongAnswer,
+          model.paused == PausedForWrongSpelling,
+          model.paused == PausedForWrongAnswer,
         )),
       ],
       [element.text(hint_button_text)],
@@ -354,13 +364,19 @@ fn quiz_input(model: Model) -> Element(Msg) {
     ui.centre(
       [],
       html.div([attribute.style([#("padding", "1em")])], [
-        html.span([attribute.style([#("margin", "1em"), #("color", "green")])], [
+        html.span([attribute.style([#("margin", "1em"), #("color", g)])], [
           model.correct
           |> list.length()
           |> int.to_string()
           |> element.text(),
         ]),
-        html.span([attribute.style([#("margin", "1em"), #("color", "red")])], [
+        html.span([attribute.style([#("margin", "1em"), #("color", y)])], [
+          model.misspelled
+          |> list.length()
+          |> int.to_string()
+          |> element.text(),
+        ]),
+        html.span([attribute.style([#("margin", "1em"), #("color", r)])], [
           model.incorrect
           |> list.length()
           |> int.to_string()
@@ -374,12 +390,20 @@ fn quiz_input(model: Model) -> Element(Msg) {
 fn game_over_screen(model: Model) -> Element(Msg) {
   let correct = model.correct |> list.length() |> int.to_string()
   let incorrect = model.incorrect |> list.length() |> int.to_string()
+  let misspelled = model.misspelled |> list.length() |> int.to_string()
   let hints_used = model.total_hints_used |> int.to_string()
 
   html.div([], [
     html.div([], [
       html.h1([], [
-        element.text("right: " <> correct <> ", wrong: " <> incorrect),
+        element.text(
+          "right: "
+          <> correct
+          <> ", misspelled: "
+          <> misspelled
+          <> ", wrong: "
+          <> incorrect,
+        ),
       ]),
       html.h1([], [element.text("hints used: " <> hints_used)]),
       ..incorrect_capitals_list(model)
