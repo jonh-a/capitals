@@ -48,6 +48,7 @@ pub type Msg {
   UserUpdatedGuess(value: String)
   UserKeyPress(key: String)
   Hint
+  Replay
 }
 
 // fetch first country from countries_remaining list
@@ -208,6 +209,10 @@ fn handle_key_press(key: String, model: Model) -> Model {
   }
 }
 
+fn replay() -> Model {
+  init([])
+}
+
 pub fn update(model: Model, msg: Msg) -> Model {
   case msg {
     Validate -> handle_button_click(model)
@@ -215,6 +220,7 @@ pub fn update(model: Model, msg: Msg) -> Model {
       Model(..model, current_guess: value |> normalize_guess())
     UserKeyPress(key) -> handle_key_press(key, model)
     Hint -> provide_hint(model)
+    Replay -> replay()
   }
 }
 
@@ -251,7 +257,7 @@ fn quiz_input(model: Model) -> Element(Msg) {
         element.text(
           list.length(model.correct) + list.length(model.incorrect) + 1
           |> int.to_string()
-          <> "/10",
+          <> "/15",
         ),
       ]),
     ),
@@ -312,9 +318,20 @@ fn game_over_screen(model: Model) -> Element(Msg) {
   let hints_used = model.total_hints_used |> int.to_string()
 
   html.div([], [
-    html.h1([], [element.text("right: " <> correct <> ", wrong: " <> incorrect)]),
-    html.h1([], [element.text("hints used: " <> hints_used)]),
-    ..missed_table(model)
+    html.div([], [
+      html.h1([], [
+        element.text("right: " <> correct <> ", wrong: " <> incorrect),
+      ]),
+      html.h1([], [element.text("hints used: " <> hints_used)]),
+      ..incorrect_capitals_list(model)
+    ]),
+    ui.button(
+      [
+        attribute.style([#("width", "100%"), #("margin-top", "1em")]),
+        event.on_click(Replay),
+      ],
+      [element.text("replay (enter)")],
+    ),
   ])
 }
 
@@ -332,7 +349,7 @@ fn incorrect_guess_result(
   ]
 }
 
-fn missed_table(model: Model) -> List(Element(Msg)) {
+fn incorrect_capitals_list(model: Model) -> List(Element(Msg)) {
   case list.length(model.incorrect) {
     0 -> [html.h1([], [element.text("you didn't miss any!")])]
     _ -> [

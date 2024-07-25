@@ -31,5 +31,5 @@ pub fn get_countries() -> List(#(String, String, String)) {
     #("venezuela", "caracas", "🇻🇪"),
   ]
   |> list.shuffle()
-  |> list.take(2)
+  |> list.take(15)
 }
