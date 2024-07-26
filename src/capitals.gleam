@@ -1,7 +1,8 @@
-import data.{type PopulationFilter, get_countries}
+import data.{get_countries}
 import edit_distance/levenshtein
 import gleam/bool
 import gleam/int
+import gleam/io
 import gleam/list
 import gleam/string
 import lustre
@@ -27,7 +28,7 @@ type Model {
     paused: PausedType,
     hints: Int,
     total_hints_used: Int,
-    population_filter: PopulationFilter,
+    continent_filter: List(String),
   )
 }
 
@@ -37,30 +38,22 @@ type PausedType {
   NotPaused
 }
 
-fn init(_flags) -> Model {
+fn init(continents: List(String)) -> Model {
   Model(
     correct: [],
     misspelled: [],
     incorrect: [],
     current_guess: "",
-    countries_remaining: get_countries(data.HundredMillion),
+    countries_remaining: get_countries(continents),
     game_over: False,
     paused: NotPaused,
     hints: 0,
     total_hints_used: 0,
-    population_filter: data.HundredMillion,
+    continent_filter: continents,
   )
 }
 
 // UPDATE ----------------------------------------------------------------------
-
-pub type Msg {
-  Validate
-  UserUpdatedGuess(value: String)
-  UserKeyPress(key: String)
-  Hint
-  Replay
-}
 
 // fetch first country from countries_remaining list
 fn get_current_country(
@@ -262,12 +255,33 @@ fn replay() -> Model {
   init([])
 }
 
+fn check_continent(checked: Bool, continent: String, model: Model) -> Model {
+  case checked {
+    True -> init([continent, ..model.continent_filter])
+    False ->
+      init(
+        list.drop_while(model.continent_filter, fn(x: String) { x == continent }),
+      )
+  }
+}
+
+pub type Msg {
+  Validate
+  UserUpdatedGuess(value: String)
+  UserKeyPress(key: String)
+  Hint
+  Replay
+  CheckContinent(checked: Bool, continent: String)
+}
+
 fn update(model: Model, msg: Msg) -> Model {
   case msg {
     Validate -> handle_button_click(model)
     UserUpdatedGuess(value) ->
       Model(..model, current_guess: value |> normalize_guess())
     UserKeyPress(key) -> handle_key_press(key, model)
+    CheckContinent(checked, continent) ->
+      check_continent(checked, continent, model)
     Hint -> provide_hint(model)
     Replay -> replay()
   }
@@ -308,6 +322,21 @@ fn quiz_input(model: Model) -> Element(Msg) {
   }
 
   html.div([attribute.style([#("min-width", "40%"), #("max-width", "90%")])], [
+    ui.cluster(
+      [],
+      ["americas", "europe", "asia", "africa", "oceania"]
+        |> list.map(fn(c: String) {
+          html.div([], [
+            ui.input([
+              attribute.type_("checkbox"),
+              attribute.id(c),
+              attribute.checked(list.contains(model.continent_filter, c)),
+              event.on_check(fn(checked: Bool) { CheckContinent(checked, c) }),
+            ]),
+            html.label([attribute.for(c)], [element.text(c)]),
+          ])
+        }),
+    ),
     ui.centre(
       [attribute.style([#("margin-bottom", "1em")])],
       html.h1([], [
@@ -445,7 +474,7 @@ fn incorrect_capitals_list(model: Model) -> List(Element(Msg)) {
 
 pub fn main() {
   let app = lustre.simple(init, update, view)
-  let assert Ok(_) = lustre.start(app, "#app", Nil)
+  let assert Ok(_) = lustre.start(app, "#app", ["americas"])
 
   Nil
 }
