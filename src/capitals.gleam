@@ -363,7 +363,7 @@ fn quiz_input(model: Model) -> Element(Msg) {
                 event.on_check(fn(checked: Bool) { CheckContinent(checked, c) }),
               ]),
               html.label(
-                [attribute.for(c), attribute.style([#("padding", ".2em")])],
+                [attribute.for(c), attribute.style([#("padding", ".1em")])],
                 [element.text(c)],
               ),
             ])
