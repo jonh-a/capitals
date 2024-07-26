@@ -289,7 +289,7 @@ fn update(model: Model, msg: Msg) -> Model {
 // VIEW ------------------------------------------------------------------------
 
 fn view(model: Model) -> Element(Msg) {
-  let main_styles = [#("height", "100vh"), #("padding", "1rem")]
+  let main_styles = [#("height", "90vh"), #("padding", "1rem")]
 
   case model.game_over, model.paused {
     True, _ ->
@@ -349,23 +349,26 @@ fn quiz_input(model: Model) -> Element(Msg) {
         ),
       ]),
     ),
-    ui.cluster(
+    ui.centre(
       [],
-      ["am", "eu", "af", "as", "oc"]
-        |> list.map(fn(c: String) {
-          html.div([], [
-            ui.input([
-              attribute.type_("checkbox"),
-              attribute.id(c),
-              attribute.checked(list.contains(model.continent_filter, c)),
-              event.on_check(fn(checked: Bool) { CheckContinent(checked, c) }),
-            ]),
-            html.label(
-              [attribute.for(c), attribute.style([#("padding", ".2em")])],
-              [element.text(c)],
-            ),
-          ])
-        }),
+      ui.cluster(
+        [attribute.style([#("padding-bottom", "1em")])],
+        ["am", "eu", "af", "as", "oc"]
+          |> list.map(fn(c: String) {
+            html.div([], [
+              ui.input([
+                attribute.type_("checkbox"),
+                attribute.id(c),
+                attribute.checked(list.contains(model.continent_filter, c)),
+                event.on_check(fn(checked: Bool) { CheckContinent(checked, c) }),
+              ]),
+              html.label(
+                [attribute.for(c), attribute.style([#("padding", ".2em")])],
+                [element.text(c)],
+              ),
+            ])
+          }),
+      ),
     ),
     ui.field(
       [],
