@@ -2,7 +2,6 @@ import data.{get_countries}
 import edit_distance/levenshtein
 import gleam/bool
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/string
 import lustre
@@ -260,7 +259,7 @@ fn check_continent(checked: Bool, continent: String, model: Model) -> Model {
     True -> init([continent, ..model.continent_filter])
     False ->
       init(
-        list.drop_while(model.continent_filter, fn(x: String) { x == continent }),
+        list.filter(model.continent_filter, fn(x: String) { x != continent }),
       )
   }
 }
@@ -311,32 +310,32 @@ fn quiz_input(model: Model) -> Element(Msg) {
     0 | 1 -> "hint (])"
     2 | _ -> "no more"
   }
-  let #(input_text, input_background, button_text) = case model.paused {
-    PausedForWrongAnswer -> #(current_country.1, "rgb(250, 160, 160)", "resume")
-    PausedForWrongSpelling -> #(
+  let #(header_text, input_text, input_background, button_text) = case
+    model.paused,
+    list.length(model.continent_filter)
+  {
+    _, 0 -> #("select continent(s)", "...", "none", "n/a")
+    PausedForWrongAnswer, _ -> #(
+      current_country.0 <> " " <> current_country.2,
+      current_country.1,
+      "rgb(250, 160, 160)",
+      "resume",
+    )
+    PausedForWrongSpelling, _ -> #(
+      current_country.0 <> " " <> current_country.2,
       current_country.1,
       "rgb(255, 255, 102)",
       "resume",
     )
-    NotPaused -> #(model.current_guess, "none", "guess (enter)")
+    NotPaused, _ -> #(
+      current_country.0 <> " " <> current_country.2,
+      model.current_guess,
+      "none",
+      "guess (enter)",
+    )
   }
 
   html.div([attribute.style([#("min-width", "40%"), #("max-width", "90%")])], [
-    ui.cluster(
-      [],
-      ["americas", "europe", "asia", "africa", "oceania"]
-        |> list.map(fn(c: String) {
-          html.div([], [
-            ui.input([
-              attribute.type_("checkbox"),
-              attribute.id(c),
-              attribute.checked(list.contains(model.continent_filter, c)),
-              event.on_check(fn(checked: Bool) { CheckContinent(checked, c) }),
-            ]),
-            html.label([attribute.for(c)], [element.text(c)]),
-          ])
-        }),
-    ),
     ui.centre(
       [attribute.style([#("margin-bottom", "1em")])],
       html.h1([], [
@@ -350,9 +349,27 @@ fn quiz_input(model: Model) -> Element(Msg) {
         ),
       ]),
     ),
+    ui.cluster(
+      [],
+      ["am", "eu", "af", "as", "oc"]
+        |> list.map(fn(c: String) {
+          html.div([], [
+            ui.input([
+              attribute.type_("checkbox"),
+              attribute.id(c),
+              attribute.checked(list.contains(model.continent_filter, c)),
+              event.on_check(fn(checked: Bool) { CheckContinent(checked, c) }),
+            ]),
+            html.label(
+              [attribute.for(c), attribute.style([#("padding", ".2em")])],
+              [element.text(c)],
+            ),
+          ])
+        }),
+    ),
     ui.field(
       [],
-      [element.text(current_country.0 <> " " <> current_country.2)],
+      [element.text(header_text)],
       ui.input([
         attribute.value(input_text),
         attribute.placeholder("guess the capital..."),
@@ -377,10 +394,11 @@ fn quiz_input(model: Model) -> Element(Msg) {
       [
         event.on_click(Hint),
         attribute.style(hint_button_style),
-        attribute.disabled(bool.or(
-          model.paused == PausedForWrongSpelling,
-          model.paused == PausedForWrongAnswer,
-        )),
+        attribute.disabled(
+          model.paused == PausedForWrongSpelling
+          || model.paused == PausedForWrongAnswer
+          || model.continent_filter |> list.length() == 0,
+        ),
       ],
       [element.text(hint_button_text)],
     ),
@@ -474,7 +492,7 @@ fn incorrect_capitals_list(model: Model) -> List(Element(Msg)) {
 
 pub fn main() {
   let app = lustre.simple(init, update, view)
-  let assert Ok(_) = lustre.start(app, "#app", ["americas"])
+  let assert Ok(_) = lustre.start(app, "#app", ["am", "eu", "af", "as", "oc"])
 
   Nil
 }
