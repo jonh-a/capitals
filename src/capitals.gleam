@@ -343,26 +343,30 @@ fn quiz_input(model: Model) -> Element(Msg) {
         ),
       ]),
     ),
-    ui.centre(
-      [],
-      html.div(
-        [attribute.style([#("padding-bottom", "1em"), #("display", "flex")])],
-        ["am", "eu", "af", "as", "oc"]
-          |> list.map(fn(c: String) {
-            html.span([attribute.style([#("padding", "0em .5em 0em")])], [
-              ui.input([
-                attribute.type_("checkbox"),
-                attribute.id(c),
-                attribute.checked(list.contains(model.continent_filter, c)),
-                event.on_check(fn(checked: Bool) { CheckContinent(checked, c) }),
-              ]),
-              html.label(
-                [attribute.for(c), attribute.style([#("padding-left", ".2em")])],
-                [element.text(c)],
-              ),
-            ])
-          }),
-      ),
+    html.div(
+      [
+        attribute.style([
+          #("padding-bottom", "1em"),
+          #("display", "flex"),
+          #("flex-wrap", "wrap"),
+          #("justify-content", "center"),
+        ]),
+      ],
+      ["americas", "europe", "africa", "asia", "oceania"]
+        |> list.map(fn(c: String) {
+          html.div([attribute.style([#("padding", "0em .5em 0em")])], [
+            ui.input([
+              attribute.type_("checkbox"),
+              attribute.id(c),
+              attribute.checked(list.contains(model.continent_filter, c)),
+              event.on_check(fn(checked: Bool) { CheckContinent(checked, c) }),
+            ]),
+            html.label(
+              [attribute.for(c), attribute.style([#("padding-left", ".2em")])],
+              [element.text(c)],
+            ),
+          ])
+        }),
     ),
     ui.field(
       [],
@@ -489,7 +493,10 @@ fn incorrect_capitals_list(model: Model) -> List(Element(Msg)) {
 
 pub fn main() {
   let app = lustre.simple(init, update, view)
-  let assert Ok(_) = lustre.start(app, "#app", ["am", "eu", "af", "as", "oc"])
+  let assert Ok(_) =
+    lustre.start(app, "#app", [
+      "americas", "europe", "africa", "asia", "oceania",
+    ])
 
   Nil
 }

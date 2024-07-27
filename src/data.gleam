@@ -6,11 +6,11 @@ pub fn get_countries(
   continents
   |> list.map(fn(c: String) -> List(#(String, String, String)) {
     case c {
-      "am" -> americas
-      "eu" -> europe
-      "as" -> asia
-      "af" -> africa
-      "oc" -> oceania
+      "americas" -> americas
+      "europe" -> europe
+      "asia" -> asia
+      "africa" -> africa
+      "oceania" -> oceania
       _ -> []
     }
   })
