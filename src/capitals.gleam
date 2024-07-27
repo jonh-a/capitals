@@ -54,7 +54,7 @@ fn init(continents: List(String)) -> Model {
 
 // UPDATE ----------------------------------------------------------------------
 
-// fetch first country from countries_remaining list
+/// fetch first country from countries_remaining list
 fn get_current_country(
   countries_remaining: List(#(String, String, String)),
 ) -> #(String, String, String) {
@@ -72,15 +72,7 @@ fn get_current_country(
 fn has_next_country(
   countries_remaining: List(#(String, String, String)),
 ) -> Bool {
-  let next =
-    countries_remaining
-    |> list.drop(1)
-    |> list.first()
-
-  case next {
-    Ok(_) -> True
-    Error(_) -> False
-  }
+  list.length(countries_remaining) > 1
 }
 
 fn convert_accents(guess: String) -> String {
@@ -121,6 +113,7 @@ type AccurateEnoughResponse {
   Nope
 }
 
+/// use levenshtein distance to determine if guess was simply misspelled
 fn check_if_accurate_enough(guess, capital) -> AccurateEnoughResponse {
   let distance = levenshtein.distance(guess, capital)
   let threshold =
@@ -254,6 +247,7 @@ fn replay() -> Model {
   init([])
 }
 
+/// handle checkbox input for a continent
 fn check_continent(checked: Bool, continent: String, model: Model) -> Model {
   case checked {
     True -> init([continent, ..model.continent_filter])
