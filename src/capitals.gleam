@@ -345,11 +345,11 @@ fn quiz_input(model: Model) -> Element(Msg) {
     ),
     ui.centre(
       [],
-      ui.cluster(
-        [attribute.style([#("padding-bottom", "1em")])],
+      html.div(
+        [attribute.style([#("padding-bottom", "1em"), #("display", "flex")])],
         ["am", "eu", "af", "as", "oc"]
           |> list.map(fn(c: String) {
-            html.div([], [
+            html.span([attribute.style([#("padding", "0em .5em 0em")])], [
               ui.input([
                 attribute.type_("checkbox"),
                 attribute.id(c),
@@ -357,7 +357,7 @@ fn quiz_input(model: Model) -> Element(Msg) {
                 event.on_check(fn(checked: Bool) { CheckContinent(checked, c) }),
               ]),
               html.label(
-                [attribute.for(c), attribute.style([#("padding", ".1em")])],
+                [attribute.for(c), attribute.style([#("padding-left", ".2em")])],
                 [element.text(c)],
               ),
             ])
