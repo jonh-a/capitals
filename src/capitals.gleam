@@ -2,7 +2,6 @@ import data.{get_countries}
 import edit_distance/levenshtein
 import gleam/bool
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/string
 import lustre
@@ -16,19 +15,27 @@ import lustre/ui
 
 type Model {
   Model(
-    // #(name, capital, flag)
+    // #(name, capital, flag, population)
     correct: List(#(String, String, String, Float)),
+    // #(name, capital, flag, population)
     misspelled: List(#(String, String, String, Float)),
-    // #(name, capital, flag, guess)
+    // #(name, capital, flag, population, guess)
     incorrect: List(#(String, String, String, Float, String)),
+    // input string
     current_guess: String,
-    // #(name, capital, flag)
+    // #(name, capital, flag, population)
     countries_remaining: List(#(String, String, String, Float)),
+    // whether all questions are answered
     game_over: Bool,
+    // whether the input is paused to display correct answer
     paused: PausedType,
+    // number of hints used during current question
     hints: Int,
+    // number of hints used during game
     total_hints_used: Int,
+    // ["americas", "africa" ...]
     continent_filter: List(String),
+    // whether to limit questions to >10m
     population_filter: Bool,
   )
 }
@@ -74,13 +81,15 @@ fn get_current_country(
   }
 }
 
-// check to see if the current country is the last country in the list
+/// check to see if the current country is the last country in the list
 fn has_next_country(
   countries_remaining: List(#(String, String, String, Float)),
 ) -> Bool {
   list.length(countries_remaining) > 1
 }
 
+/// correct answers are stored without accents/diacritics, so guesses are
+/// converted to non-accented form for comparison
 fn convert_accents(guess: String) -> String {
   guess
   |> string.to_graphemes()
@@ -105,6 +114,7 @@ fn convert_accents(guess: String) -> String {
   }
 }
 
+/// exclude hint input (]) and convert all input to lowercase
 fn normalize_guess(guess) -> String {
   guess
   |> string.lowercase()
@@ -120,6 +130,7 @@ type AccurateEnoughResponse {
 }
 
 /// use levenshtein distance to determine if guess was simply misspelled
+/// or whether it should be counted as purely wrong
 fn check_if_accurate_enough(guess, capital) -> AccurateEnoughResponse {
   let distance = levenshtein.distance(guess, capital)
   let threshold =
@@ -132,7 +143,9 @@ fn check_if_accurate_enough(guess, capital) -> AccurateEnoughResponse {
   }
 }
 
-/// resume game if paused or compare guess against correct capital
+/// main handler for "guess"/"resume" button. if game is paused, then resume
+/// and proceed to next question. if the game isn't paused, handle input as
+/// submission.
 fn handle_button_click(model: Model) -> Model {
   let capital_guess = model.current_guess |> normalize_guess()
   let current_country = get_current_country(model.countries_remaining)
@@ -220,7 +233,7 @@ fn handle_button_click(model: Model) -> Model {
   }
 }
 
-/// allow a max of 2 hints
+/// allow a max of 2 hints per question
 fn provide_hint(model: Model) -> Model {
   case model.hints {
     0 | 1 ->
@@ -251,6 +264,7 @@ fn handle_key_press(key: String, model: Model) -> Model {
   }
 }
 
+/// reset game with selected preferences
 fn replay(model: Model) -> Model {
   init(#(model.continent_filter, model.population_filter))
 }
