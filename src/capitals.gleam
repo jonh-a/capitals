@@ -243,8 +243,8 @@ fn handle_key_press(key: String, model: Model) -> Model {
   }
 }
 
-fn replay() -> Model {
-  init([])
+fn replay(model: Model) -> Model {
+  init(model.continent_filter)
 }
 
 /// handle checkbox input for a continent
@@ -276,7 +276,7 @@ fn update(model: Model, msg: Msg) -> Model {
     CheckContinent(checked, continent) ->
       check_continent(checked, continent, model)
     Hint -> provide_hint(model)
-    Replay -> replay()
+    Replay -> replay(model)
   }
 }
 
@@ -339,7 +339,11 @@ fn quiz_input(model: Model) -> Element(Msg) {
           + list.length(model.incorrect)
           + 1
           |> int.to_string()
-          <> "/15",
+          <> case model.continent_filter {
+            ["oceania"] -> "/14"
+            [] -> "/?"
+            _ -> "/15"
+          },
         ),
       ]),
     ),

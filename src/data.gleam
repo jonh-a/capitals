@@ -21,7 +21,7 @@ pub fn get_countries(
 
 const americas = [
   #("argentina", "buenos aires", "🇦🇷"), #("bolivia", "sucre", "🇧🇴"),
-  #("brazil", "brasília", "🇧🇷"), #("canada", "ottawa", "🇨🇦"),
+  #("brazil", "brasilia", "🇧🇷"), #("canada", "ottawa", "🇨🇦"),
   #("chile", "santiago", "🇨🇱"), #("colombia", "bogota", "🇨🇴"),
   #("costa rica", "san jose", "🇨🇷"), #("cuba", "havana", "🇨🇺"),
   #("dominican republic", "santo domingo", "🇩🇴"),
