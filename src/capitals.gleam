@@ -2,6 +2,7 @@ import data.{get_countries}
 import edit_distance/levenshtein
 import gleam/bool
 import gleam/int
+import gleam/io
 import gleam/list
 import gleam/string
 import lustre
@@ -16,18 +17,19 @@ import lustre/ui
 type Model {
   Model(
     // #(name, capital, flag)
-    correct: List(#(String, String, String)),
-    misspelled: List(#(String, String, String)),
+    correct: List(#(String, String, String, Float)),
+    misspelled: List(#(String, String, String, Float)),
     // #(name, capital, flag, guess)
-    incorrect: List(#(String, String, String, String)),
+    incorrect: List(#(String, String, String, Float, String)),
     current_guess: String,
     // #(name, capital, flag)
-    countries_remaining: List(#(String, String, String)),
+    countries_remaining: List(#(String, String, String, Float)),
     game_over: Bool,
     paused: PausedType,
     hints: Int,
     total_hints_used: Int,
     continent_filter: List(String),
+    population_filter: Bool,
   )
 }
 
@@ -37,18 +39,22 @@ type PausedType {
   NotPaused
 }
 
-fn init(continents: List(String)) -> Model {
+fn init(flags: #(List(String), Bool)) -> Model {
+  let continents = flags.0
+  let population_filter = flags.1
+
   Model(
     correct: [],
     misspelled: [],
     incorrect: [],
     current_guess: "",
-    countries_remaining: get_countries(continents),
+    countries_remaining: get_countries(continents, population_filter),
     game_over: False,
     paused: NotPaused,
     hints: 0,
     total_hints_used: 0,
     continent_filter: continents,
+    population_filter: population_filter,
   )
 }
 
@@ -56,21 +62,21 @@ fn init(continents: List(String)) -> Model {
 
 /// fetch first country from countries_remaining list
 fn get_current_country(
-  countries_remaining: List(#(String, String, String)),
-) -> #(String, String, String) {
+  countries_remaining: List(#(String, String, String, Float)),
+) -> #(String, String, String, Float) {
   let this =
     countries_remaining
     |> list.first()
 
   case this {
     Ok(this) -> this
-    Error(_) -> #("", "", "")
+    Error(_) -> #("", "", "", 0.0)
   }
 }
 
 // check to see if the current country is the last country in the list
 fn has_next_country(
-  countries_remaining: List(#(String, String, String)),
+  countries_remaining: List(#(String, String, String, Float)),
 ) -> Bool {
   list.length(countries_remaining) > 1
 }
@@ -139,7 +145,7 @@ fn handle_button_click(model: Model) -> Model {
   case model.paused, is_game_over, guess_response {
     PausedForWrongAnswer, False, _ | PausedForWrongSpelling, False, _ ->
       Model(
-        ..model,
+        ..updated_model,
         countries_remaining: model.countries_remaining |> list.drop(1),
         paused: NotPaused,
         hints: 0,
@@ -173,6 +179,7 @@ fn handle_button_click(model: Model) -> Model {
             current_country.0,
             current_country.1,
             current_country.2,
+            current_country.3,
             capital_guess,
           ),
         ]),
@@ -204,6 +211,7 @@ fn handle_button_click(model: Model) -> Model {
             current_country.0,
             current_country.1,
             current_country.2,
+            current_country.3,
             capital_guess,
           ),
         ]),
@@ -244,18 +252,24 @@ fn handle_key_press(key: String, model: Model) -> Model {
 }
 
 fn replay(model: Model) -> Model {
-  init(model.continent_filter)
+  init(#(model.continent_filter, model.population_filter))
 }
 
 /// handle checkbox input for a continent
 fn check_continent(checked: Bool, continent: String, model: Model) -> Model {
   case checked {
-    True -> init([continent, ..model.continent_filter])
+    True ->
+      init(#([continent, ..model.continent_filter], model.population_filter))
     False ->
-      init(
+      init(#(
         list.filter(model.continent_filter, fn(x: String) { x != continent }),
-      )
+        model.population_filter,
+      ))
   }
+}
+
+fn check_population_filter(checked: Bool, model: Model) -> Model {
+  init(#(model.continent_filter, checked))
 }
 
 pub type Msg {
@@ -265,6 +279,7 @@ pub type Msg {
   Hint
   Replay
   CheckContinent(checked: Bool, continent: String)
+  CheckPopulationFilter(checked: Bool)
 }
 
 fn update(model: Model, msg: Msg) -> Model {
@@ -277,6 +292,7 @@ fn update(model: Model, msg: Msg) -> Model {
       check_continent(checked, continent, model)
     Hint -> provide_hint(model)
     Replay -> replay(model)
+    CheckPopulationFilter(checked) -> check_population_filter(checked, model)
   }
 }
 
@@ -372,6 +388,40 @@ fn quiz_input(model: Model) -> Element(Msg) {
           ])
         }),
     ),
+    html.hr([
+      attribute.style([
+        #("color", "gray"),
+        #("width", "70%"),
+        #("margin-left", "auto"),
+        #("margin-right", "auto"),
+        #("padding-bottom", "1em"),
+      ]),
+    ]),
+    html.div(
+      [
+        attribute.style([
+          #("padding-bottom", "1em"),
+          #("display", "flex"),
+          #("flex-wrap", "wrap"),
+          #("justify-content", "center"),
+        ]),
+      ],
+      [
+        ui.input([
+          attribute.type_("checkbox"),
+          attribute.id("population_filter"),
+          attribute.checked(model.population_filter),
+          event.on_check(CheckPopulationFilter),
+        ]),
+        html.label(
+          [
+            attribute.for("population_filter"),
+            attribute.style([#("padding-left", ".2em")]),
+          ],
+          [element.text("population of >10m only")],
+        ),
+      ],
+    ),
     ui.field(
       [],
       [element.text(header_text)],
@@ -465,7 +515,7 @@ fn game_over_screen(model: Model) -> Element(Msg) {
 }
 
 fn incorrect_guess_result(
-  country: #(String, String, String, String),
+  country: #(String, String, String, Float, String),
 ) -> List(Element(a)) {
   [
     html.span([], [
@@ -473,7 +523,7 @@ fn incorrect_guess_result(
         "❌ " <> country.0 <> " - " <> country.1 <> "... you guessed \"",
       ),
     ]),
-    html.span([attribute.style([#("color", "red")])], [element.text(country.3)]),
+    html.span([attribute.style([#("color", "red")])], [element.text(country.4)]),
     html.span([], [element.text("\"")]),
   ]
 }
@@ -487,7 +537,7 @@ fn incorrect_capitals_list(model: Model) -> List(Element(Msg)) {
       html.ul(
         [],
         model.incorrect
-          |> list.map(fn(country: #(String, String, String, String)) {
+          |> list.map(fn(country: #(String, String, String, Float, String)) {
             html.li([], incorrect_guess_result(country))
           }),
       ),
@@ -498,9 +548,10 @@ fn incorrect_capitals_list(model: Model) -> List(Element(Msg)) {
 pub fn main() {
   let app = lustre.simple(init, update, view)
   let assert Ok(_) =
-    lustre.start(app, "#app", [
-      "americas", "europe", "africa", "asia", "oceania",
-    ])
+    lustre.start(app, "#app", #(
+      ["americas", "europe", "africa", "asia", "oceania"],
+      False,
+    ))
 
   Nil
 }
