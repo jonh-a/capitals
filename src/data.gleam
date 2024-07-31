@@ -127,7 +127,7 @@ const africa = [
   #("burkina faso", "ouagadougou", "🇧🇫", 21.51),
   #("burundi", "gitega", "🇧🇮", 12.37),
   #("cabo verde", "praia", "🇨🇻", 0.56),
-  #("cameroon", "yaoundé", "🇨🇲", 27.2),
+  #("cameroon", "yaounde", "🇨🇲", 27.2),
   #("central african republic", "bangui", "🇨🇫", 5.45),
   #("chad", "n'djamena", "🇹🇩", 17.18),
   #("comoros", "moroni", "🇰🇲", 0.88),

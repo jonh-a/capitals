@@ -1,5 +1,4 @@
 import data.{get_countries}
-import edit_distance/levenshtein
 import gleam/bool
 import gleam/int
 import gleam/list
@@ -10,52 +9,26 @@ import lustre/element.{type Element}
 import lustre/element/html
 import lustre/event
 import lustre/ui
+import model.{
+  type Model, Model, NotPaused, PausedForWrongAnswer, PausedForWrongSpelling,
+}
+import util.{Close, Exact, Nope}
 
 // MODEL -----------------------------------------------------------------------
-
-type Model {
-  Model(
-    // #(name, capital, flag, population)
-    correct: List(#(String, String, String, Float)),
-    // #(name, capital, flag, population)
-    misspelled: List(#(String, String, String, Float)),
-    // #(name, capital, flag, population, guess)
-    incorrect: List(#(String, String, String, Float, String)),
-    // input string
-    current_guess: String,
-    // #(name, capital, flag, population)
-    countries_remaining: List(#(String, String, String, Float)),
-    // whether all questions are answered
-    game_over: Bool,
-    // whether the input is paused to display correct answer
-    paused: PausedType,
-    // number of hints used during current question
-    hints: Int,
-    // number of hints used during game
-    total_hints_used: Int,
-    // ["americas", "africa" ...]
-    continent_filter: List(String),
-    // whether to limit questions to >10m
-    population_filter: Bool,
-  )
-}
-
-type PausedType {
-  PausedForWrongAnswer
-  PausedForWrongSpelling
-  NotPaused
-}
 
 fn init(flags: #(List(String), Bool)) -> Model {
   let continents = flags.0
   let population_filter = flags.1
+
+  let countries = get_countries(continents, population_filter)
 
   Model(
     correct: [],
     misspelled: [],
     incorrect: [],
     current_guess: "",
-    countries_remaining: get_countries(continents, population_filter),
+    countries_remaining: countries,
+    total_number_of_countries: countries |> list.length(),
     game_over: False,
     paused: NotPaused,
     hints: 0,
@@ -67,92 +40,18 @@ fn init(flags: #(List(String), Bool)) -> Model {
 
 // UPDATE ----------------------------------------------------------------------
 
-/// fetch first country from countries_remaining list
-fn get_current_country(
-  countries_remaining: List(#(String, String, String, Float)),
-) -> #(String, String, String, Float) {
-  let this =
-    countries_remaining
-    |> list.first()
-
-  case this {
-    Ok(this) -> this
-    Error(_) -> #("", "", "", 0.0)
-  }
-}
-
-/// check to see if the current country is the last country in the list
-fn has_next_country(
-  countries_remaining: List(#(String, String, String, Float)),
-) -> Bool {
-  list.length(countries_remaining) > 1
-}
-
-/// correct answers are stored without accents/diacritics, so guesses are
-/// converted to non-accented form for comparison
-fn convert_accents(guess: String) -> String {
-  guess
-  |> string.to_graphemes()
-  |> list.reduce(fn(acc, char) {
-    case char {
-      "á" | "à" | "â" | "å" | "ã" -> acc <> "a"
-      "æ" -> acc <> "ae"
-      "č" -> acc <> "c"
-      "é" | "ë" -> acc <> "e"
-      "í" -> acc <> "i"
-      "ó" | "ø" | "ö" -> acc <> "o"
-      "ș" -> acc <> "s"
-      "ž" -> acc <> "z"
-      _ -> acc <> char
-    }
-  })
-  |> fn(x) {
-    case x {
-      Ok(chars) -> chars
-      Error(_) -> ""
-    }
-  }
-}
-
-/// exclude hint input (]) and convert all input to lowercase
-fn normalize_guess(guess) -> String {
-  guess
-  |> string.lowercase()
-  |> string.to_graphemes()
-  |> list.filter(fn(char) { char != "]" })
-  |> string.join("")
-}
-
-type AccurateEnoughResponse {
-  Exact
-  Close
-  Nope
-}
-
-/// use levenshtein distance to determine if guess was simply misspelled
-/// or whether it should be counted as purely wrong
-fn check_if_accurate_enough(guess, capital) -> AccurateEnoughResponse {
-  let distance = levenshtein.distance(guess, capital)
-  let threshold =
-    { guess |> string.length() |> int.max(capital |> string.length()) } / 3
-
-  case guess == capital, distance <= threshold {
-    True, _ -> Exact
-    False, True -> Close
-    False, False -> Nope
-  }
-}
-
 /// main handler for "guess"/"resume" button. if game is paused, then resume
 /// and proceed to next question. if the game isn't paused, handle input as
 /// submission.
-fn handle_button_click(model: Model) -> Model {
-  let capital_guess = model.current_guess |> normalize_guess()
-  let current_country = get_current_country(model.countries_remaining)
+fn handle_submit_click(model: Model) -> Model {
+  let capital_guess = model.current_guess |> util.normalize_guess()
+  let current_country = util.get_current_country(model.countries_remaining)
   let guess_response =
-    check_if_accurate_enough(convert_accents(capital_guess), current_country.1)
-  let is_game_over = has_next_country(model.countries_remaining) == False
-
+    util.check_if_accurate_enough(
+      util.convert_accents(capital_guess),
+      current_country.1,
+    )
+  let is_game_over = util.has_next_country(model.countries_remaining) == False
   let updated_model = Model(..model, current_guess: "", game_over: is_game_over)
 
   case model.paused, is_game_over, guess_response {
@@ -240,7 +139,7 @@ fn provide_hint(model: Model) -> Model {
       Model(
         ..model,
         hints: model.hints + 1,
-        current_guess: get_current_country(model.countries_remaining).1
+        current_guess: util.get_current_country(model.countries_remaining).1
           |> string.to_graphemes()
           |> list.take(model.hints + 1)
           |> string.join(""),
@@ -252,12 +151,12 @@ fn provide_hint(model: Model) -> Model {
 }
 
 /// if game is paused, allow enter w/ empty input to proceed
-/// to handle_button_click function. otherwise, ignore enter
+/// to handle_submit_click function. otherwise, ignore enter
 /// attempts with no input
 fn handle_key_press(key: String, model: Model) -> Model {
   case key, model.current_guess |> string.length, model.paused {
     "Enter", 0, NotPaused -> model
-    "Enter", _, _ -> handle_button_click(model)
+    "Enter", _, _ -> handle_submit_click(model)
     "]", _, _ -> provide_hint(model)
     _, 0, NotPaused -> model
     _, _, _ -> model
@@ -282,31 +181,33 @@ fn check_continent(checked: Bool, continent: String, model: Model) -> Model {
   }
 }
 
+/// handle input from population checkbox
 fn check_population_filter(checked: Bool, model: Model) -> Model {
   init(#(model.continent_filter, checked))
 }
 
 pub type Msg {
-  Validate
+  UserClickedSubmit
   UserUpdatedGuess(value: String)
-  UserKeyPress(key: String)
-  Hint
-  Replay
-  CheckContinent(checked: Bool, continent: String)
-  CheckPopulationFilter(checked: Bool)
+  UserPressedKey(key: String)
+  UserRequestedHint
+  UserRequestedReplay
+  UserCheckedContinent(checked: Bool, continent: String)
+  UsedCheckedPopulationFilter(checked: Bool)
 }
 
 fn update(model: Model, msg: Msg) -> Model {
   case msg {
-    Validate -> handle_button_click(model)
+    UserClickedSubmit -> handle_submit_click(model)
     UserUpdatedGuess(value) ->
-      Model(..model, current_guess: value |> normalize_guess())
-    UserKeyPress(key) -> handle_key_press(key, model)
-    CheckContinent(checked, continent) ->
+      Model(..model, current_guess: value |> util.normalize_guess())
+    UserPressedKey(key) -> handle_key_press(key, model)
+    UserCheckedContinent(checked, continent) ->
       check_continent(checked, continent, model)
-    Hint -> provide_hint(model)
-    Replay -> replay(model)
-    CheckPopulationFilter(checked) -> check_population_filter(checked, model)
+    UserRequestedHint -> provide_hint(model)
+    UserRequestedReplay -> replay(model)
+    UsedCheckedPopulationFilter(checked) ->
+      check_population_filter(checked, model)
   }
 }
 
@@ -323,13 +224,14 @@ fn view(model: Model) -> Element(Msg) {
   }
 }
 
+/// main game component
 fn quiz_input(model: Model) -> Element(Msg) {
   let g = "green"
   let r = "red"
   let y = "rgb(222, 201, 0)"
   let guess_button_style = [#("width", "100%"), #("margin-top", "1em")]
   let hint_button_style = [#("width", "100%"), #("margin-top", ".2em")]
-  let current_country = get_current_country(model.countries_remaining)
+  let current_country = util.get_current_country(model.countries_remaining)
   let hint_button_text = case model.hints {
     0 | 1 -> "hint (])"
     2 | _ -> "no more"
@@ -369,10 +271,10 @@ fn quiz_input(model: Model) -> Element(Msg) {
           + list.length(model.incorrect)
           + 1
           |> int.to_string()
-          <> case model.continent_filter {
-            ["oceania"] -> "/14"
-            [] -> "/?"
-            _ -> "/15"
+          <> "/"
+          <> case model.total_number_of_countries {
+            0 -> "?"
+            num -> int.to_string(num)
           },
         ),
       ]),
@@ -393,7 +295,9 @@ fn quiz_input(model: Model) -> Element(Msg) {
               attribute.type_("checkbox"),
               attribute.id(c),
               attribute.checked(list.contains(model.continent_filter, c)),
-              event.on_check(fn(checked: Bool) { CheckContinent(checked, c) }),
+              event.on_check(fn(checked: Bool) {
+                UserCheckedContinent(checked, c)
+              }),
             ]),
             html.label(
               [attribute.for(c), attribute.style([#("padding-left", ".2em")])],
@@ -425,7 +329,7 @@ fn quiz_input(model: Model) -> Element(Msg) {
           attribute.type_("checkbox"),
           attribute.id("population_filter"),
           attribute.checked(model.population_filter),
-          event.on_check(CheckPopulationFilter),
+          event.on_check(UsedCheckedPopulationFilter),
         ]),
         html.label(
           [
@@ -443,14 +347,14 @@ fn quiz_input(model: Model) -> Element(Msg) {
         attribute.value(input_text),
         attribute.placeholder("guess the capital..."),
         event.on_input(UserUpdatedGuess),
-        event.on_keypress(UserKeyPress),
+        event.on_keypress(UserPressedKey),
         attribute.style([#("background-color", input_background)]),
       ]),
       [],
     ),
     ui.button(
       [
-        event.on_click(Validate),
+        event.on_click(UserClickedSubmit),
         attribute.style(guess_button_style),
         attribute.disabled(bool.and(
           string.length(model.current_guess) == 0,
@@ -461,7 +365,7 @@ fn quiz_input(model: Model) -> Element(Msg) {
     ),
     ui.button(
       [
-        event.on_click(Hint),
+        event.on_click(UserRequestedHint),
         attribute.style(hint_button_style),
         attribute.disabled(
           model.paused == PausedForWrongSpelling
@@ -521,7 +425,7 @@ fn game_over_screen(model: Model) -> Element(Msg) {
     ui.button(
       [
         attribute.style([#("width", "100%"), #("margin-top", "1em")]),
-        event.on_click(Replay),
+        event.on_click(UserRequestedReplay),
       ],
       [element.text("replay")],
     ),
