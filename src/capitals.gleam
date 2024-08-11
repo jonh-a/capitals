@@ -40,6 +40,31 @@ fn init(flags: #(List(String), Bool)) -> Model {
 
 // UPDATE ----------------------------------------------------------------------
 
+pub type Msg {
+  UserClickedSubmit
+  UserUpdatedGuess(value: String)
+  UserPressedKey(key: String)
+  UserRequestedHint
+  UserRequestedReplay
+  UserCheckedContinent(checked: Bool, continent: String)
+  UsedCheckedPopulationFilter(checked: Bool)
+}
+
+fn update(model: Model, msg: Msg) -> Model {
+  case msg {
+    UserClickedSubmit -> handle_submit_click(model)
+    UserUpdatedGuess(value) ->
+      Model(..model, current_guess: value |> util.normalize_guess())
+    UserPressedKey(key) -> handle_key_press(key, model)
+    UserCheckedContinent(checked, continent) ->
+      check_continent(checked, continent, model)
+    UserRequestedHint -> provide_hint(model)
+    UserRequestedReplay -> replay(model)
+    UsedCheckedPopulationFilter(checked) ->
+      check_population_filter(checked, model)
+  }
+}
+
 /// main handler for "guess"/"resume" button. if game is paused, then resume
 /// and proceed to next question. if the game isn't paused, handle input as
 /// submission.
@@ -184,31 +209,6 @@ fn check_continent(checked: Bool, continent: String, model: Model) -> Model {
 /// handle input from population checkbox
 fn check_population_filter(checked: Bool, model: Model) -> Model {
   init(#(model.continent_filter, checked))
-}
-
-pub type Msg {
-  UserClickedSubmit
-  UserUpdatedGuess(value: String)
-  UserPressedKey(key: String)
-  UserRequestedHint
-  UserRequestedReplay
-  UserCheckedContinent(checked: Bool, continent: String)
-  UsedCheckedPopulationFilter(checked: Bool)
-}
-
-fn update(model: Model, msg: Msg) -> Model {
-  case msg {
-    UserClickedSubmit -> handle_submit_click(model)
-    UserUpdatedGuess(value) ->
-      Model(..model, current_guess: value |> util.normalize_guess())
-    UserPressedKey(key) -> handle_key_press(key, model)
-    UserCheckedContinent(checked, continent) ->
-      check_continent(checked, continent, model)
-    UserRequestedHint -> provide_hint(model)
-    UserRequestedReplay -> replay(model)
-    UsedCheckedPopulationFilter(checked) ->
-      check_population_filter(checked, model)
-  }
 }
 
 // VIEW ------------------------------------------------------------------------

@@ -1,6 +1,7 @@
 import edit_distance/levenshtein
 import gleam/int
 import gleam/list
+import gleam/result
 import gleam/string
 
 /// fetch first country from countries_remaining list
@@ -9,12 +10,7 @@ pub fn get_current_country(
 ) -> #(String, String, String, Float) {
   countries_remaining
   |> list.first()
-  |> fn(current_country) {
-    case current_country {
-      Ok(c) -> c
-      Error(_) -> #("", "", "", 0.0)
-    }
-  }
+  |> result.unwrap(#("", "", "", 0.0))
 }
 
 /// check to see if the current country is the last country in the list
@@ -42,12 +38,7 @@ pub fn convert_accents(guess: String) -> String {
       _ -> acc <> char
     }
   })
-  |> fn(x) {
-    case x {
-      Ok(chars) -> chars
-      Error(_) -> ""
-    }
-  }
+  |> result.unwrap("")
 }
 
 /// exclude hint input (]) and convert all input to lowercase
